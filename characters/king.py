@@ -1,4 +1,4 @@
-class player:
+class minion:
     HP: int = 10
     BLOCK: int = 0
     ATTACK: int = 0
@@ -26,7 +26,3 @@ class player:
     def Attack(self, enemy):
         self.GetAttack()
         enemy.TakeDmg(self.ATTACK)
-
-class Player(player):
-    def __init__(self):
-        super().__init__()
