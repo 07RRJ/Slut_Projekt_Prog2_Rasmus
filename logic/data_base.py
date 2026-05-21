@@ -18,17 +18,16 @@ class Database:
             .csv()
             .execute()
         )
-        print(responce)
         return responce.data
 
     def InsertData(self, table_name, data):
         table = self.GetTable(table_name)
-        # print(table.type())   
+        print(table)
         try:
-            print(table.type())
-            if table.type() == "dict":
-                for data in table:
-                    if not data["player2"]:
+            for idx, data in enumerate(table):
+                if idx > 0:
+                    print(data)
+                    if data:
                         response = (
                             self.supabase.table(table_name)
                             .update({"player2": data})
@@ -36,8 +35,8 @@ class Database:
                             .execute()
                         )
                         return
-        except:
-            print("nuh uh")
+        except Exception as e:
+            print(e)
         response = (
             self.supabase.table(table_name)
             .insert({"player1": data})

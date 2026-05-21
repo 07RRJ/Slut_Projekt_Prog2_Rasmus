@@ -1,11 +1,12 @@
 from logic import data_base
 from threading import Thread
-from time import time
+# from time import time
+from logic.menu import LoadingScreen, MainMenu
 
-def Start(db):
-    # print(db.GetTable("gamemanager"))
-    db.InsertData("gamemanager", {"player": "yes"})
-    print(db.GetTable("gamemanager"))
+# def Start(db):
+#     # print(db.GetTable("gamemanager"))
+#     db.InsertData("gamemanager", {"player": "yes"})
+#     print(db.GetTable("gamemanager"))
 
 class Init:
     progress = 100
@@ -21,6 +22,7 @@ if __name__ == "__main__":
     init = Init()
     gathering = Thread(target=load)
     gathering.start()
+    LoadingScreen()
     gathering.join()
     db = init.db
-    Start(db)
+    MainMenu(db)
