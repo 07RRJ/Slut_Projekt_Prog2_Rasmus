@@ -1,7 +1,7 @@
 from logic import data_base
 from threading import Thread
 # from time import time
-from logic.menu import LoadingScreen, MainMenu
+from ui.menu import LoadingScreen, MainMenu
 
 # def Start(db):
 #     # print(db.GetTable("gamemanager"))
