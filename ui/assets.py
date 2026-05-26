@@ -4,9 +4,9 @@ from logic.functions import ResourcePath
 BASE_WIDTH, BASE_HEIGHT = 1920, 1080
 screen = pygame.display.set_mode((BASE_WIDTH, BASE_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
 
-IMG_PATH = "assets/img/"
+MENU_PATH = "assets/img/menu/"
+GAME_PATH = "assets/img/game/"
 FONT_PATH = "assets/fonts/"
-ENEMY_PATH = IMG_PATH+"enemies/"
 
 pygame.init()
 
@@ -28,5 +28,5 @@ class Assets:
     text_font1 = pygame.font.Font(text_font_path1, 28)
 
     # IMGS
-    # MAIN_MENU = pygame.image.load(ResourcePath(IMG_PATH+"mainMenu.png")).convert_alpha()
-    # MAIN_MENU = pygame.transform.scale(MAIN_MENU, (BASE_WIDTH, BASE_HEIGHT))
+    MAIN_MENU = pygame.image.load(ResourcePath(MENU_PATH+"mainMenu.png")).convert_alpha()
+    MAIN_MENU = pygame.transform.scale(MAIN_MENU, (BASE_WIDTH, BASE_HEIGHT))

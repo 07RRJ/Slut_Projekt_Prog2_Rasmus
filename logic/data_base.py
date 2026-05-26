@@ -13,14 +13,14 @@ class Database:
 
     def Register(self, username: str, password_hash: str) -> dict | None:
         res = self.client.table("users").insert({
-            "username": username,
+            "username": username.upper(),
             "password_hash": password_hash
         }).execute()
         return res.data[0] if res.data else None
 
     def Login(self, username: str) -> dict | None:
         res = self.client.table("users") \
-            .select("*").eq("username", username).single().execute()
+            .select("*").eq("username", username.upper()).single().execute()
         return res.data
 
     def CreatePlayer(self, user_id: str) -> dict:

@@ -1,11 +1,11 @@
 import pygame
+from ui.assets import Assets, BASE_WIDTH, BASE_HEIGHT, screen
 
-BASE_WIDTH, BASE_HEIGHT = 1920, 1080
-screen = pygame.display.set_mode((BASE_WIDTH, BASE_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
 clock = pygame.time.Clock()
 
 def LoadingScreen():
     for i in range(100):
-        clock.tick(10)
-        screen.fill((10, 10, 10))
+        clock.tick(100)
+        # screen.fill((10, 10, 10))
+        screen.blit(Assets.MAIN_MENU, (0, 0))
         pygame.display.flip()
