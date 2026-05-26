@@ -1,2 +1,2 @@
-def Start(db):
+def Start(data):
     pass

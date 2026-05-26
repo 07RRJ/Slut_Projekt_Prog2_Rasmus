@@ -28,5 +28,5 @@ class Assets:
     text_font1 = pygame.font.Font(text_font_path1, 28)
 
     # IMGS
-    MAIN_MENU = pygame.image.load(ResourcePath(IMG_PATH+"mainMenu.png")).convert_alpha()
-    MAIN_MENU = pygame.transform.scale(MAIN_MENU, (BASE_WIDTH, BASE_HEIGHT))
+    # MAIN_MENU = pygame.image.load(ResourcePath(IMG_PATH+"mainMenu.png")).convert_alpha()
+    # MAIN_MENU = pygame.transform.scale(MAIN_MENU, (BASE_WIDTH, BASE_HEIGHT))

@@ -45,12 +45,12 @@ class Database:
         res = self.client.table("cards").select("*").execute()
         return res.data
 
-    def BuyCard(self, user_id: str, pet_id: str, slot: int) -> dict:
+    def BuyCard(self, user_id: str, card_id: str, slot: int) -> dict:
         blueprint = self.client.table("cards") \
-            .select("*").eq("id", pet_id).single().execute().data
+            .select("*").eq("id", card_id).single().execute().data
         res = self.client.table("player_cards").insert({
             "user_id": user_id,
-            "pet_id": pet_id,
+            "card_id": card_id,
             "slot": slot,
             "attack": blueprint["base_attack"],
             "health": blueprint["base_health"],
@@ -58,21 +58,21 @@ class Database:
         }).execute()
         return res.data[0]
 
-    def get_team(self, user_id: str) -> list:
-        res = self.client.table("player_pets") \
+    def GetTeam(self, user_id: str) -> list:
+        res = self.client.table("player_cards") \
             .select("*, cards(name, ability)") \
             .eq("user_id", user_id).order("slot").execute()
         return res.data
 
-    def upgrade_pet(self, player_pet_id: str, attack: int, level: int) -> None:
-        self.client.table("player_pets") \
+    def UpgradeCard(self, player_card_id: str, attack: int, level: int) -> None:
+        self.client.table("player_cards") \
             .update({"attack": attack, "level": level}) \
-            .eq("id", player_pet_id).execute()
+            .eq("id", player_card_id).execute()
 
-    def sell_pet(self, player_pet_id: str) -> None:
-        self.client.table("player_pets").delete().eq("id", player_pet_id).execute()
+    def SellCard(self, player_card_id: str) -> None:
+        self.client.table("player_cards").delete().eq("id", player_card_id).execute()
 
-    def find_or_create_match(self, user_id: str, turn: int) -> dict:
+    def FindOrCreateMatch(self, user_id: str, turn: int) -> dict:
         return self.client.rpc("find_or_create_match", {
             "p_user_id": user_id,
             "p_turn": turn

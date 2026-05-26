@@ -1,53 +1,53 @@
 import bcrypt
-from auth.session import save_session, clear_session
+from auth.session import SaveSession, ClearSession
 
-def _prompt_login(app) -> bool:
+def PromtLogin(data) -> bool:
     print("\n1) Login  2) Register  3) Exit")
     choice = input("> ").strip()
 
     if choice == "1":
-        userName = input("Username: ").strip()
-        user = app.db.login(userName)
+        username = input("Username: ").strip()
+        user = data.db.Login(username)
         if not user:
             print("User not found.")
             return False
         pw = input("Password: ").encode()
         if bcrypt.checkpw(pw, user["password_hash"].encode()):
-            app.session = {"user_id": user["id"], "username": user["username"]}
-            save_session(user["id"], user["username"])
-            print(f"Welcome back, {userName}!")
+            data.session = {"user_id": user["id"], "username": user["username"]}
+            SaveSession(user["id"], user["username"])
+            print(f"Welcome back, {username}!")
             return True
         print("Wrong password")
         return False
 
     elif choice == "2":
-        userName = input("Choose username: ").strip()
+        username = input("Choose username: ").strip()
         pw = input("Choose password: ").encode()
         hashed = bcrypt.hashpw(pw, bcrypt.gensalt()).decode()
-        user = app.db.Register(userName, hashed)
+        user = data.db.Register(username, hashed)
         if user:
-            app.session = {"user_id": user["id"], "username": user["username"]}
-            save_session(user["id"], user["username"])
-            print(f"Account created! Welcome, {userName}!")
+            data.session = {"user_id": user["id"], "username": user["username"]}
+            SaveSession(user["id"], user["username"])
+            print(f"Account created! Welcome, {username}!")
             return True
-        print("Username already taken.")
+        print("username already taken.")
         return False
 
     return False
 
-def MainMenu(app):
-    if not app.session:
-        if not _prompt_login(app):
+def MainMenu(data):
+    if not data.session:
+        if not PromtLogin(data):
             return
 
-    print(f"\n=== Main Menu === ({app.session['username']})")
+    print(f"\n=== Main Menu === ({data.session['username']})")
     print("1) Find Game  2) Logout  3) Exit")
     choice = input("> ").strip()
 
     if choice == "1":
         from logic.match_making import FindGame
-        FindGame(app)
+        FindGame(data)
     elif choice == "2":
-        clear_session()
-        app.session = None
-        MainMenu(app)
+        ClearSession()
+        data.session = None
+        MainMenu(data)

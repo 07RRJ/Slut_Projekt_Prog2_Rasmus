@@ -25,12 +25,12 @@ def GetOrCreateKey() -> bytes:
     kf.write_bytes(key)
     return key
 
-def SaveSession(userId: str, userName: str) -> None:
+def SaveSession(user_id: str, username: str) -> None:
     f = Fernet(GetOrCreateKey())
-    data = json.dumps({"userId": userId, "username": userName}).encode()
+    data = json.dumps({"user_id": user_id, "username": username}).encode()
     SessionFile().write_bytes(f.encrypt(data))
 
-def load_session() -> dict | None:
+def LoadSession() -> dict | None:
     sF = SessionFile()
     if not sF.exists():
         return None
@@ -42,5 +42,5 @@ def load_session() -> dict | None:
         sF.unlink(missing_ok=True)
         return None
 
-def clear_session() -> None:
+def ClearSession() -> None:
     SessionFile().unlink(missing_ok=True)
