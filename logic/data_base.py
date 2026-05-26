@@ -6,39 +6,74 @@ from logic.functions import GetGameFolder
 class Database:
     def __init__(self):
         load_dotenv(GetGameFolder() + "/.env")
-        self.database_url = os.getenv("DATABASE_URL")
-        self.database_password = os.getenv("DATABASE_PASSWORD")
-        
-        self.supabase: Client = create_client(self.database_url, self.database_password)
-
-    def GetTable(self, table_name):
-        responce = (
-            self.supabase.table(table_name)
-            .select("*")
-            .csv()
-            .execute()
+        self.client: Client = create_client(
+            os.getenv("DATABASE_URL"),
+            os.getenv("DATABASE_PASSWORD")
         )
-        return responce.data
 
-    def InsertData(self, table_name, data):
-        table = self.GetTable(table_name)
-        print(table)
-        try:
-            for idx, data in enumerate(table):
-                if idx > 0:
-                    print(data)
-                    if data:
-                        response = (
-                            self.supabase.table(table_name)
-                            .update({"player2": data})
-                            .eq("id", data["id"])
-                            .execute()
-                        )
-                        return
-        except Exception as e:
-            print(e)
-        response = (
-            self.supabase.table(table_name)
-            .insert({"player1": data})
-            .execute()
-        )
+    def Register(self, username: str, password_hash: str) -> dict | None:
+        res = self.client.table("users").insert({
+            "username": username,
+            "password_hash": password_hash
+        }).execute()
+        return res.data[0] if res.data else None
+
+    def Login(self, username: str) -> dict | None:
+        res = self.client.table("users") \
+            .select("*").eq("username", username).single().execute()
+        return res.data
+
+    def CreatePlayer(self, user_id: str) -> dict:
+        res = self.client.table("player").insert({
+            "user_id": user_id,
+            "gold": 10, "turn": 1, "health": 10, "status": "shopping"
+        }).execute()
+        return res.data[0]
+
+    def GetPlayer(self, user_id: str) -> dict | None:
+        res = self.client.table("player") \
+            .select("*").eq("user_id", user_id).single().execute()
+        return res.data
+
+    def UpdatePlayer(self, user_id: str, fields: dict) -> None:
+        self.client.table("player").update(fields).eq("user_id", user_id).execute()
+
+    def DeletePlayer(self, user_id: str) -> None:
+        self.client.table("player").delete().eq("user_id", user_id).execute()
+
+    def GetCardCatalogue(self) -> list:
+        res = self.client.table("cards").select("*").execute()
+        return res.data
+
+    def BuyCard(self, user_id: str, pet_id: str, slot: int) -> dict:
+        blueprint = self.client.table("cards") \
+            .select("*").eq("id", pet_id).single().execute().data
+        res = self.client.table("player_cards").insert({
+            "user_id": user_id,
+            "pet_id": pet_id,
+            "slot": slot,
+            "attack": blueprint["base_attack"],
+            "health": blueprint["base_health"],
+            "level": 1,
+        }).execute()
+        return res.data[0]
+
+    def get_team(self, user_id: str) -> list:
+        res = self.client.table("player_pets") \
+            .select("*, cards(name, ability)") \
+            .eq("user_id", user_id).order("slot").execute()
+        return res.data
+
+    def upgrade_pet(self, player_pet_id: str, attack: int, level: int) -> None:
+        self.client.table("player_pets") \
+            .update({"attack": attack, "level": level}) \
+            .eq("id", player_pet_id).execute()
+
+    def sell_pet(self, player_pet_id: str) -> None:
+        self.client.table("player_pets").delete().eq("id", player_pet_id).execute()
+
+    def find_or_create_match(self, user_id: str, turn: int) -> dict:
+        return self.client.rpc("find_or_create_match", {
+            "p_user_id": user_id,
+            "p_turn": turn
+        }).execute().data

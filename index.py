@@ -1,28 +1,22 @@
-from logic import data_base
 from threading import Thread
-# from time import time
-from ui.menu import LoadingScreen, MainMenu
+from logic.data_base import Database
+from auth.session import load_session
+from ui.loading import LoadingScreen
+from ui.menu import MainMenu
 
-# def Start(db):
-#     # print(db.GetTable("gamemanager"))
-#     db.InsertData("gamemanager", {"player": "yes"})
-#     print(db.GetTable("gamemanager"))
+class App:
+    db: Database = None
+    session: dict = None
 
-class Init:
-    progress = 100
-    done = 100
-    db = None
-    # kB = None
-init = Init()
+app = App()
 
-def load():
-    init.db = data_base.Database()
+def _load():
+    app.db = Database()
+    app.session = load_session()
 
 if __name__ == "__main__":
-    init = Init()
-    gathering = Thread(target=load)
-    gathering.start()
+    t = Thread(target=_load)
+    t.start()
     LoadingScreen()
-    gathering.join()
-    db = init.db
-    MainMenu(db)
+    t.join()
+    MainMenu(app)
