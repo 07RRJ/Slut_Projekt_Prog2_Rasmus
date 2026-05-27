@@ -8,7 +8,7 @@ import os
 
 clock = pygame.time.Clock()
 
-def GetText(data, text):
+def GetText(data, text, password=False):
     font = pygame.font.Font(None, 36)
     input_box = pygame.Rect(BASE_WIDTH//2-200, BASE_HEIGHT//2-25, 400, 50)
     color_inactive = pygame.Color('gray')
@@ -21,7 +21,10 @@ def GetText(data, text):
         clock.tick(60)
         # screen.fill((30, 30, 30))
         pygame.draw.rect(screen, data.assets.BLACK[3], data.assets.MENU)
-        txt_surface = font.render(text, True, data.assets.BLACK[5])
+        if password:
+            txt_surface = font.render(f"{"*"*len(text)}", True, data.assets.BLACK[5])
+        else:
+            txt_surface = font.render(text, True, data.assets.BLACK[5])
 
         width = max(400, txt_surface.get_width() + 10)
         input_box.w = width
@@ -103,7 +106,7 @@ def PromtLogin(data) -> bool:
                         if not user:
                             print("User not found.")
                             return False
-                        pw = GetText(data, "Password: ").encode()
+                        pw = GetText(data, "Password: ", True).encode()
                         if bcrypt.checkpw(pw, user["password_hash"].encode()):
                             data.session = {"user_id": user["id"], "username": user["username"]}
                             SaveSession(user["id"], user["username"])
@@ -114,7 +117,7 @@ def PromtLogin(data) -> bool:
 
                     elif selectedIdx == 1:
                         username = GetText(data, "Choose username: ").strip()
-                        pw = GetText(data, "Choose password: ").encode()
+                        pw = GetText(data, "Choose password: ", True).encode()
                         hashed = bcrypt.hashpw(pw, bcrypt.gensalt()).decode()
                         user = data.db.Register(username, hashed)
                         if user:
