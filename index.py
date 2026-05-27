@@ -1,8 +1,8 @@
 from threading import Thread
-from logic.data_base import Database
+from data_base.supabase_client import Database
 from auth.session import LoadSession
-from ui.loading import LoadingScreen
-from ui.menu import MainMenu
+from scenes.loading_scene import LoadingScreen
+from scenes.menu_scene import MainMenu
 from ui.assets import Assets
 
 class Data:

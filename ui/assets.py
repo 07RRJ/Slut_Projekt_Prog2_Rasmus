@@ -1,11 +1,11 @@
 import pygame
-from logic.functions import ResourcePath
+from general.functions import ResourcePath
 
 BASE_WIDTH, BASE_HEIGHT = 1920, 1080
 screen = pygame.display.set_mode((BASE_WIDTH, BASE_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
 
-MENU_PATH = "assets/img/menu/"
-GAME_PATH = "assets/img/game/"
+MENU_PATH = "assets/menu/"
+CARD_PATH = "assets/cards/"
 FONT_PATH = "assets/fonts/"
 
 pygame.init()
@@ -36,4 +36,5 @@ class Assets:
     COMFIRM = pygame.Rect(BASE_WIDTH//4, BASE_HEIGHT//6, BASE_WIDTH//2, BASE_HEIGHT//3)
 
     # CARD_IMGS
-    
+    CARD = pygame.image.load(ResourcePath(CARD_PATH+"card_1.png")).convert_alpha()
+    CARD = pygame.transform.scale(CARD, (BASE_WIDTH//8, BASE_HEIGHT//8))

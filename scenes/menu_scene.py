@@ -1,7 +1,8 @@
 import bcrypt
 from auth.session import SaveSession, ClearSession
 import pygame
-from ui.elements import Bar, Button
+from ui.elements import Bar
+from ui.button import Button
 from ui.assets import BASE_WIDTH, BASE_HEIGHT, screen
 import sys
 import os
