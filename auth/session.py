@@ -3,7 +3,7 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 from platformdirs import user_data_dir
 
-GAME_NAME = "CardsOfRebelion"
+GAME_NAME = "CardsOfRebellion"
 ME = "07RRJ_Studios"
 
 def SavePath() -> Path:

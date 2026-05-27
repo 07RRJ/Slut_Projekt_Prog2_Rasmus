@@ -10,7 +10,7 @@ clock = pygame.time.Clock()
 
 def GetText(data, text):
     font = pygame.font.Font(None, 36)
-    input_box = pygame.Rect(200, 250, 400, 50)
+    input_box = pygame.Rect(BASE_WIDTH//2-200, BASE_HEIGHT//2-25, 400, 50)
     color_inactive = pygame.Color('gray')
     color_active = pygame.Color('dodgerblue')
     color = color_inactive
@@ -19,8 +19,9 @@ def GetText(data, text):
     text = ""
     while True:
         clock.tick(60)
-        screen.fill((30, 30, 30))
-        txt_surface = font.render(text, True, (255, 255, 255))
+        # screen.fill((30, 30, 30))
+        pygame.draw.rect(screen, data.assets.BLACK[3], data.assets.MENU)
+        txt_surface = font.render(text, True, data.assets.BLACK[5])
 
         width = max(400, txt_surface.get_width() + 10)
         input_box.w = width
@@ -31,7 +32,6 @@ def GetText(data, text):
         pygame.display.flip()
 
         for event in pygame.event.get():
-
             if event.type == pygame.QUIT:
                 return
             elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -54,7 +54,12 @@ def PromtLogin(data) -> bool:
     selectedIdx = None
 
     button_rect = (
-        pygame.Rect(BASE_WIDTH//2, BASE_HEIGHT//3 + 200 * i, 200, 100) for i in range(3)
+        pygame.Rect(
+            BASE_WIDTH//3 + 200 + 300 * i, 
+            BASE_HEIGHT - 200,
+            200, 
+            100
+        ) for i in range(3)
     )
 
     button_text = ("Login", "Register", "Back")
@@ -72,7 +77,7 @@ def PromtLogin(data) -> bool:
 
     while True:
         clock.tick(60)
-        screen.fill(data.assets.BLACK[4])
+        screen.blit(data.assets.MAIN_MENU, (0, 0))
 
         for idx, btn in enumerate(buttons):
             btn.draw(idx == selectedIdx)
@@ -120,16 +125,30 @@ def PromtLogin(data) -> bool:
                         print("username already taken.")
                         return False
                     else:
-                        return
+                        return None
 
-def MainMenu(data): # data.session['username'] - username
+def MainMenu(data):
     if not data.session:
-        if not PromtLogin(data):
+        login = PromtLogin(data)
+        if login is None:
             return
+        elif not login:
+            MainMenu(data)
     selectedIdx = None
 
+    user = data.assets.title_font.render(
+        data.session['username'], 
+        True, 
+        data.assets.RED[2]
+    )
+
     button_rect = (
-        pygame.Rect(BASE_WIDTH//2, BASE_HEIGHT//3 + 200 * i, 200, 100) for i in range(3)
+        pygame.Rect(
+            BASE_WIDTH//3 + 200 + 300 * i, 
+            BASE_HEIGHT - 200,
+            200, 
+            100
+        ) for i in range(3)
     )
 
     button_text = ("find game", "log out", "quit")
@@ -147,7 +166,8 @@ def MainMenu(data): # data.session['username'] - username
 
     while True:
         clock.tick(60)
-        screen.fill(data.assets.BLACK[4])
+        screen.blit(data.assets.MAIN_MENU, (0, 0))
+        screen.blit(user, (32, 32))
 
         for idx, btn in enumerate(buttons):
             btn.draw(idx == selectedIdx)

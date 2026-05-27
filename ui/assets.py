@@ -30,3 +30,5 @@ class Assets:
     # IMGS
     MAIN_MENU = pygame.image.load(ResourcePath(MENU_PATH+"mainMenu.png")).convert_alpha()
     MAIN_MENU = pygame.transform.scale(MAIN_MENU, (BASE_WIDTH, BASE_HEIGHT))
+
+    MENU = pygame.Rect(BASE_WIDTH//4, 0, BASE_WIDTH//2, BASE_HEIGHT)

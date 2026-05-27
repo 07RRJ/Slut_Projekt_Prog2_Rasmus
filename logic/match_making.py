@@ -1,2 +1,2 @@
-def FindGame():
+def FindGame(data):
     pass
