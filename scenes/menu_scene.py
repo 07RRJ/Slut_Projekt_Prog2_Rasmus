@@ -193,8 +193,7 @@ def MainMenu(data):
                 if selectedIdx is not None:
 
                     if selectedIdx == 0:
-                        from logic.match_making import FindGame
-                        FindGame(data)
+                        pass
                     elif selectedIdx == 1:
                         ClearSession()
                         data.session = None

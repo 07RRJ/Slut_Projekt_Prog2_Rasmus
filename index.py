@@ -1,25 +1,5 @@
-from threading import Thread
-from data_base.supabase_client import Database
-from auth.session import LoadSession
-from scenes.loading_scene import LoadingScreen
-from scenes.menu_scene import MainMenu
-from ui.assets import Assets
+from core.game import Game
 
-class Data:
-    db: Database = None
-    session: dict = None
-    assets: Assets = None
-
-data = Data()
-
-def _load():
-    data.db = Database()
-    data.session = LoadSession()
-    data.assets = Assets()
-
-if __name__ == "__main__":
-    t = Thread(target=_load)
-    t.start()
-    LoadingScreen()
-    t.join()
-    MainMenu(data)
+if __name__ == '__main__':
+    game = Game()
+    game.Run()

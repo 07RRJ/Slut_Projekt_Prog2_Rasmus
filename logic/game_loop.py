@@ -1,2 +1,0 @@
-def Start(data):
-    pass
