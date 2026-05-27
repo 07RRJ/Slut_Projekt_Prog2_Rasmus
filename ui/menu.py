@@ -8,29 +8,26 @@ import os
 
 clock = pygame.time.Clock()
 
-def GetText(data, text, password=False):
-    font = pygame.font.Font(None, 36)
-    input_box = pygame.Rect(BASE_WIDTH//2-200, BASE_HEIGHT//2-25, 400, 50)
-    color_inactive = pygame.Color('gray')
-    color_active = pygame.Color('dodgerblue')
-    color = color_inactive
+def GetText(data, text, password=False) -> str:
+    text = data.assets.text_font.render(text, True, data.assets.BLACK[5])
 
+    input_box = pygame.Rect(BASE_WIDTH//2-200, BASE_HEIGHT//2-25, 400, 50)
+    color = data.assets.BLACK[2]
     active = False
-    text = ""
+    text_input = ""
+
+    if password:
+        txt_surface = data.assets.text_font.render(f"{"*"*len(text_input)}", True, data.assets.BLACK[5])
+    else:
+        txt_surface = data.assets.text_font.render(text_input.upper(), True, data.assets.BLACK[5])
+
     while True:
         clock.tick(60)
-        # screen.fill((30, 30, 30))
         pygame.draw.rect(screen, data.assets.BLACK[3], data.assets.MENU)
-        if password:
-            txt_surface = font.render(f"{"*"*len(text)}", True, data.assets.BLACK[5])
-        else:
-            txt_surface = font.render(text, True, data.assets.BLACK[5])
-
-        width = max(400, txt_surface.get_width() + 10)
-        input_box.w = width
 
         screen.blit(txt_surface, (input_box.x + 5, input_box.y + 10))
         pygame.draw.rect(screen, color, input_box, 2)
+        screen.blit(text, (input_box.x+5, input_box.y-50))
 
         pygame.display.flip()
 
@@ -43,15 +40,23 @@ def GetText(data, text, password=False):
                 else:
                     active = False
 
-                color = color_active if active else color_inactive
+                color = data.assets.BLUE[0] if active else data.assets.BLACK[2]
 
             elif event.type == pygame.KEYDOWN and active:
                 if event.key == pygame.K_RETURN:
-                    return text
+                    return str(text_input)
                 elif event.key == pygame.K_BACKSPACE:
-                    text = text[:-1]
+                    text_input = text_input[:-1]
                 else:
-                    text += event.unicode
+                    text_input += event.unicode
+
+                if password:
+                    txt_surface = data.assets.text_font.render(f"{"*"*len(text_input)}", True, data.assets.BLACK[5])
+                else:
+                    txt_surface = data.assets.text_font.render(text_input.upper(), True, data.assets.BLACK[5])
+
+                width = max(400, txt_surface.get_width() + 10)
+                input_box.w = width
 
 def PromtLogin(data) -> bool:
     selectedIdx = None
@@ -104,15 +109,12 @@ def PromtLogin(data) -> bool:
                         username = GetText(data, "Username: ").strip()
                         user = data.db.Login(username)
                         if not user:
-                            print("User not found.")
                             return False
                         pw = GetText(data, "Password: ", True).encode()
                         if bcrypt.checkpw(pw, user["password_hash"].encode()):
                             data.session = {"user_id": user["id"], "username": user["username"]}
                             SaveSession(user["id"], user["username"])
-                            print(f"Welcome back, {username}")
                             return True
-                        print("Wrong password")
                         return False
 
                     elif selectedIdx == 1:
@@ -123,9 +125,7 @@ def PromtLogin(data) -> bool:
                         if user:
                             data.session = {"user_id": user["id"], "username": user["username"]}
                             SaveSession(user["id"], user["username"])
-                            print(f"Account created! Welcome, {username}!")
                             return True
-                        print("username already taken.")
                         return False
                     else:
                         return None

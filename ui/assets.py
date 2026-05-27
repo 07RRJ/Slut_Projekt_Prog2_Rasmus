@@ -32,3 +32,8 @@ class Assets:
     MAIN_MENU = pygame.transform.scale(MAIN_MENU, (BASE_WIDTH, BASE_HEIGHT))
 
     MENU = pygame.Rect(BASE_WIDTH//4, 0, BASE_WIDTH//2, BASE_HEIGHT)
+
+    COMFIRM = pygame.Rect(BASE_WIDTH//4, BASE_HEIGHT//6, BASE_WIDTH//2, BASE_HEIGHT//3)
+
+    # CARD_IMGS
+    
