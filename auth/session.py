@@ -6,41 +6,41 @@ from platformdirs import user_data_dir
 GAME_NAME = "CardsOfRebellion"
 ME = "07RRJ_Studios"
 
-def SavePath() -> Path:
+def save_path() -> Path:
     folder = Path(user_data_dir(GAME_NAME, ME))
     folder.mkdir(parents=True, exist_ok=True)
     return folder
 
-def KeyFile() -> Path:
-    return SavePath() / "key.bin"
+def key_file() -> Path:
+    return save_path() / "key.bin"
 
-def SessionFile() -> Path:
-    return SavePath() / "session.dat"
+def session_file() -> Path:
+    return save_path() / "session.dat"
 
-def GetOrCreateKey() -> bytes:
-    kf = KeyFile()
+def get_or_create_key() -> bytes:
+    kf = key_file()
     if kf.exists():
         return kf.read_bytes()
     key = Fernet.generate_key()
     kf.write_bytes(key)
     return key
 
-def SaveSession(user_id: str, username: str) -> None:
-    f = Fernet(GetOrCreateKey())
+def save_session(user_id: str, username: str) -> None:
+    f = Fernet(get_or_create_key())
     data = json.dumps({"user_id": user_id, "username": username}).encode()
-    SessionFile().write_bytes(f.encrypt(data))
+    session_file().write_bytes(f.encrypt(data))
 
-def LoadSession() -> dict | None:
-    sF = SessionFile()
+def load_session() -> dict | None:
+    sF = session_file()
     if not sF.exists():
         return None
     try:
-        f = Fernet(GetOrCreateKey())
+        f = Fernet(get_or_create_key())
         data = f.decrypt(sF.read_bytes())
         return json.loads(data)
     except Exception:
         sF.unlink(missing_ok=True)
         return None
 
-def ClearSession() -> None:
-    SessionFile().unlink(missing_ok=True)
+def clear_session() -> None:
+    session_file().unlink(missing_ok=True)

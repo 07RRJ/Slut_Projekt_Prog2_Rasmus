@@ -1,6 +1,6 @@
 import pygame, os, sys
 from dataclasses import dataclass, field
-from ui.assets import Assets, BASE_WIDTH, BASE_HEIGHT, screen
+from core.asset_manager import Assets, BASE_WIDTH, BASE_HEIGHT, screen
 
 pygame.init()
 

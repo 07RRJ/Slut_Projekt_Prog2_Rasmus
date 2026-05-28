@@ -1,28 +1,50 @@
-from threading import Thread
-from data_base.supabase_client import Database
-from auth.session import LoadSession
-from scenes.loading_scene import LoadingScreen
-from scenes.menu_scene import MainMenu
-from ui.assets import Assets
-
-class Data:
-    db: Database = None
-    session: dict = None
-    assets: Assets = None
-
-data = Data()
-
-def Load():
-    data.db = Database()
-    data.session = LoadSession()
-    data.assets = Assets()
+import pygame
+from core.constants import *
+from core.game_state import GameState
+from core.scene_manager import SceneManager
+from core.asset_manager import AssetManager
+# from scenes.menu_scene import MenuScene
+from scenes.loading_scene import LoadingScene
 
 class Game:
     def __init__(self):
-        pass
-    def Run(AnArgumentThatShouldntExistBecauseSomehowThisNeedsThisBecauseItDoesntGetAnArgumentButItDoesAndWithoutThisItCantFixItself=None):
-        t = Thread(target=Load)
-        t.start()
-        LoadingScreen()
-        t.join()
-        MainMenu(data)
+        pygame.init()
+
+        self.screen = pygame.display.set_mode(
+            (BASE_WIDTH, BASE_HEIGHT)
+        )
+
+        pygame.display.set_caption("Cards Of Rebellion")
+
+        self.clock = pygame.time.Clock()
+        self.running = True
+
+        self.assets = AssetManager()
+
+        self.state = GameState()
+
+        self.scene_manager = SceneManager()
+        self.scene_manager.switch_scene(LoadingScene(self))
+
+    def set_icon(self):
+        pygame.display.set_icon(self.assets.get_image("icon"))
+
+    def Run(self):
+        while self.running:
+            events = pygame.event.get()
+
+            for event in events:
+                if event.type == pygame.QUIT:
+                    self.running = False
+
+            self.scene_manager.handle_events(events)
+            self.scene_manager.update()
+
+            self.screen.fill(BACKGROUND_COLOR)
+
+            self.scene_manager.draw(self.screen)
+
+            pygame.display.flip()
+            self.clock.tick(FPS)
+
+        pygame.quit()
