@@ -3,7 +3,6 @@ from core.constants import *
 from core.game_state import GameState
 from core.scene_manager import SceneManager
 from core.asset_manager import AssetManager
-# from scenes.menu_scene import MenuScene
 from scenes.loading_scene import LoadingScene
 
 class Game:

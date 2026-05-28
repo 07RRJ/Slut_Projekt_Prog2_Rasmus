@@ -1,11 +1,9 @@
 import bcrypt
 from auth.session import save_session, clear_session
 import pygame
-from ui.elements import Bar
 from ui.button import Button
-from core.asset_manager import BASE_WIDTH, BASE_HEIGHT, screen
+from core.constants import *
 import sys
-import os
 
 clock = pygame.time.Clock()
 
