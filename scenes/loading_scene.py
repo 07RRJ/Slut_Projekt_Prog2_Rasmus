@@ -1,37 +1,31 @@
+import pygame
 from scenes.base_scene import BaseScene
-from scenes.menu_scene import MenuScene
+from core.constants    import WHITE, BLACK, BASE_WIDTH, BASE_HEIGHT
 
 class LoadingScene(BaseScene):
     def __init__(self, game):
         super().__init__(game)
+        self.done   = False
+        self.font   = pygame.font.SysFont("arial", 36)
+        self._load_assets()
 
-        self.finished_loading = False
-
-        self.load_assets()
-
-    def load_assets(self):
-        assets = self.game.assets
-
-        assets.load_image(
-            "icon",
-            "assets/icon/icon.png"
-        )
-
-        assets.load_image(
-            "background",
-            "assets/menu/mainMenu.png"
-        )
-
-        assets.load_image(
-            "card1",
-            "assets/cards/card_1.png"
-        )
-
-        self.finished_loading = True
+    def _load_assets(self):
+        a = self.game.assets
+        a.load_image("icon",       "assets/icon/icon.png")
+        a.load_image("background", "assets/menu/mainMenu.png")
+        a.load_image("card1",      "assets/cards/card_1.png")
+        a.load_font("title", "assets/fonts/COPRGTB.TTF",  64)
+        a.load_font("body",  "assets/fonts/CORBEL.TTF",   28)
+        a.load_font("bold",  "assets/fonts/CORBELB.TTF",  28)
+        self.done = True
 
     def update(self):
-        if self.finished_loading:
+        if self.done:
             self.game.set_icon()
-            self.game.scene_manager.switch_scene(
-                MenuScene(self.game)
-            )
+            from scenes.menu_scene import MenuScene
+            self.game.scene_manager.switch_scene(MenuScene(self.game))
+
+    def draw(self, screen):
+        screen.fill((20, 20, 20))
+        text = self.font.render("Loading…", True, WHITE)
+        screen.blit(text, text.get_rect(center=(BASE_WIDTH // 2, BASE_HEIGHT // 2)))

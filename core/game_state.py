@@ -1,14 +1,54 @@
 class GameState:
     def __init__(self):
-        self.username = "codex"
+        self.user_id: str = ""
+        self.username: str = "codex"
+        self.health: int = 10
+        self.gold: int = 10
+        self.turn: int = 1
 
-        self.health = 5
-        self.gold = 5
-        self.turn = 1
-
-        self.team = [None] * 5
-        self.enemy_team = [None] * 5
-
-        self.shop_cards = []
+        self.team: list = [None] * 5
+        self.enemy_team: list = [None] * 5
+        self.shop_cards: list = []
+        self.match: dict | None = None
 
         self.selected_card = None
+
+    def load_from_db(self, player_row: dict, session: dict) -> None:
+        self.user_id = session["user_id"]
+        self.username = session["username"]
+        if player_row:
+            self.health = player_row["health"]
+            self.gold = player_row["gold"]
+            self.turn = player_row["turn"]
+
+    def load_team(self, player_cards: list) -> None:
+        from models.card_model import Card
+        self.team = [None] * 5
+        for row in player_cards:
+            c = Card(
+                id = row["id"],
+                card_id = row["card_id"],
+                name = row["cards"]["name"],
+                attack = row["attack"],
+                health = row["health"],
+                level = row["level"],
+                ability = row["cards"].get("ability", ""),
+                slot = row["slot"],
+            )
+            self.team[row["slot"]] = c
+
+    def load_enemy_team(self, player_cards: list) -> None:
+        from models.card_model import Card
+        self.enemy_team = [None] * 5
+        for row in player_cards:
+            c = Card(
+                id = row["id"],
+                card_id = row["card_id"],
+                name = row["cards"]["name"],
+                attack = row["attack"],
+                health = row["health"],
+                level = row["level"],
+                ability = row["cards"].get("ability", ""),
+                slot = row["slot"],
+            )
+            self.enemy_team[row["slot"]] = c

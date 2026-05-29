@@ -1,200 +1,165 @@
-import bcrypt
-from auth.session import save_session, clear_session
 import pygame
-from ui.button import Button
-from core.constants import *
-import sys
+import bcrypt
+from scenes.base_scene import BaseScene
+from ui.button         import Button
+from core.constants    import *
 
-clock = pygame.time.Clock()
+class _TextInput:
+    """Minimal single-line text input widget."""
+    def __init__(self, rect, placeholder="", password=False, font=None):
+        self.rect        = pygame.Rect(rect)
+        self.placeholder = placeholder
+        self.password    = password
+        self.font        = font or pygame.font.SysFont("arial", 28)
+        self.text        = ""
+        self.active      = False
 
-def get_text(data, text, password=False) -> str:
-    text = data.assets.text_font.render(text, True, data.assets.BLACK[5])
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.active = self.rect.collidepoint(event.pos)
+        if event.type == pygame.KEYDOWN and self.active:
+            if event.key == pygame.K_BACKSPACE:
+                self.text = self.text[:-1]
+            elif event.key not in (pygame.K_RETURN, pygame.K_TAB):
+                self.text += event.unicode
 
-    input_box = pygame.Rect(BASE_WIDTH//2-200, BASE_HEIGHT//2-25, 400, 50)
-    color = data.assets.BLACK[2]
-    active = False
-    text_input = ""
+    def draw(self, screen):
+        color  = BLUE if self.active else GRAY
+        pygame.draw.rect(screen, color, self.rect, 2, border_radius=8)
+        display = ("*" * len(self.text)) if self.password else self.text.upper()
+        if display:
+            surf = self.font.render(display, True, BLACK)
+        else:
+            surf = self.font.render(self.placeholder, True, GRAY)
+        screen.blit(surf, (self.rect.x + 10, self.rect.y + 8))
 
-    if password:
-        txt_surface = data.assets.text_font.render(f"{"*"*len(text_input)}", True, data.assets.BLACK[5])
-    else:
-        txt_surface = data.assets.text_font.render(text_input.upper(), True, data.assets.BLACK[5])
 
-    while True:
-        clock.tick(60)
-        pygame.draw.rect(screen, data.assets.BLACK[3], data.assets.MENU)
+class LoginScene(BaseScene):
+    def __init__(self, game):
+        super().__init__(game)
+        cx = BASE_WIDTH // 2
+        self.font  = game.assets.get_font("body")
+        self.title = game.assets.get_font("title")
+        self.error = ""
 
-        screen.blit(txt_surface, (input_box.x + 5, input_box.y + 10))
-        pygame.draw.rect(screen, color, input_box, 2)
-        screen.blit(text, (input_box.x+5, input_box.y-50))
+        self.username_input = _TextInput((cx - 200, 380, 400, 50), "Username", font=self.font)
+        self.password_input = _TextInput((cx - 200, 460, 400, 50), "Password", password=True, font=self.font)
 
-        pygame.display.flip()
+        self.login_btn = Button((cx - 200, 550, 190, 60), "LOGIN",  self._do_login)
+        self.back_btn  = Button((cx +  10, 550, 190, 60), "BACK",   self._back)
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if input_box.collidepoint(event.pos):
-                    active = True
-                else:
-                    active = False
-
-                color = data.assets.BLUE[0] if active else data.assets.BLACK[2]
-
-            elif event.type == pygame.KEYDOWN and active:
-                if event.key == pygame.K_RETURN:
-                    return str(text_input)
-                elif event.key == pygame.K_BACKSPACE:
-                    text_input = text_input[:-1]
-                else:
-                    text_input += event.unicode
-
-                if password:
-                    txt_surface = data.assets.text_font.render(f"{"*"*len(text_input)}", True, data.assets.BLACK[5])
-                else:
-                    txt_surface = data.assets.text_font.render(text_input.upper(), True, data.assets.BLACK[5])
-
-                width = max(400, txt_surface.get_width() + 10)
-                input_box.w = width
-
-def PromtLogin(data) -> bool:
-    selectedIdx = None
-
-    button_rect = (
-        pygame.Rect(
-            BASE_WIDTH//3 + 200 + 300 * i, 
-            BASE_HEIGHT - 200,
-            200, 
-            100
-        ) for i in range(3)
-    )
-
-    button_text = ("Login", "Register", "Back")
-
-    buttons = []
-    for idx, rect in enumerate(button_rect):
-        buttons.append(
-            Button(
-                Text=f"{button_text[idx]}",
-                Rect=rect,
-                Font=data.assets.text_font,
-                Colour=data.assets.BLACK[0]
-            )
-        )
-
-    while True:
-        clock.tick(60)
-        screen.blit(data.assets.MAIN_MENU, (0, 0))
-
-        for idx, btn in enumerate(buttons):
-            btn.draw(idx == selectedIdx)
-
-        pygame.display.flip()
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
-            pos = pygame.mouse.get_pos()
-            selectedIdx = None
-            for idx, btn in enumerate(buttons):
-                if btn.rect.collidepoint(pos):
-                    selectedIdx = idx
-            
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if selectedIdx is not None:
-                    if selectedIdx == 0:
-                        username = get_text(data, "Username: ").strip()
-                        user = data.db.Login(username)
-                        if not user:
-                            return False
-                        pw = get_text(data, "Password: ", True).encode()
-                        if bcrypt.checkpw(pw, user["password_hash"].encode()):
-                            data.session = {"user_id": user["id"], "username": user["username"]}
-                            save_session(user["id"], user["username"])
-                            return True
-                        return False
-
-                    elif selectedIdx == 1:
-                        username = get_text(data, "Choose username: ").strip()
-                        pw = get_text(data, "Choose password: ", True).encode()
-                        hashed = bcrypt.hashpw(pw, bcrypt.gensalt()).decode()
-                        user = data.db.Register(username, hashed)
-                        if user:
-                            data.session = {"user_id": user["id"], "username": user["username"]}
-                            save_session(user["id"], user["username"])
-                            return True
-                        return False
-                    else:
-                        return None
-
-def MainMenu(data):
-    if not data.session:
-        login = PromtLogin(data)
-        if login is None:
+    def _do_login(self):
+        username = self.username_input.text.strip()
+        password = self.password_input.text.encode()
+        if not username or not password:
+            self.error = "Please fill in both fields."
             return
-        elif not login:
-            MainMenu(data)
-    selectedIdx = None
 
-    user = data.assets.title_font.render(
-        data.session['username'], 
-        True, 
-        data.assets.RED[2]
-    )
+        user = self.game.db.Login(username)
+        if not user:
+            self.error = "User not found."
+            return
+        if not bcrypt.checkpw(password, user["password_hash"].encode()):
+            self.error = "Wrong password."
+            return
 
-    button_rect = (
-        pygame.Rect(
-            BASE_WIDTH//3 + 200 + 300 * i, 
-            BASE_HEIGHT - 200,
-            200, 
-            100
-        ) for i in range(3)
-    )
+        session = {"user_id": user["id"], "username": user["username"]}
+        from auth.session import save_session
+        save_session(user["id"], user["username"])
+        self.game.session      = session
+        self.game.state.user_id  = user["id"]
+        self.game.state.username = user["username"]
 
-    button_text = ("find game", "log out", "quit")
+        from scenes.menu_scene import MenuScene
+        self.game.scene_manager.switch_scene(MenuScene(self.game))
 
-    buttons = []
-    for idx, rect in enumerate(button_rect):
-        buttons.append(
-            Button(
-                Text=f"{button_text[idx]}",
-                Rect=rect,
-                Font=data.assets.text_font,
-                Colour=data.assets.BLACK[0]
-            )
-        )
+    def _back(self):
+        from scenes.menu_scene import MenuScene
+        self.game.scene_manager.switch_scene(MenuScene(self.game))
 
-    while True:
-        clock.tick(60)
-        screen.blit(data.assets.MAIN_MENU, (0, 0))
-        screen.blit(user, (32, 32))
+    def handle_events(self, events):
+        for event in events:
+            self.username_input.handle_event(event)
+            self.password_input.handle_event(event)
+            self.login_btn.handle_event(event)
+            self.back_btn.handle_event(event)
 
-        for idx, btn in enumerate(buttons):
-            btn.draw(idx == selectedIdx)
+    def draw(self, screen):
+        screen.fill(BACKGROUND_COLOR)
+        t = self.title.render("Login", True, BLACK)
+        screen.blit(t, t.get_rect(center=(BASE_WIDTH // 2, 260)))
 
-        pygame.display.flip()
+        self.username_input.draw(screen)
+        self.password_input.draw(screen)
+        self.login_btn.draw(screen)
+        self.back_btn.draw(screen)
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+        if self.error:
+            err = self.font.render(self.error, True, RED)
+            screen.blit(err, err.get_rect(center=(BASE_WIDTH // 2, 640)))
 
-            pos = pygame.mouse.get_pos()
-            selectedIdx = None
-            for idx, btn in enumerate(buttons):
-                if btn.rect.collidepoint(pos):
-                    selectedIdx = idx
-            
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if selectedIdx is not None:
 
-                    if selectedIdx == 0:
-                        pass
-                    elif selectedIdx == 1:
-                        clear_session()
-                        data.session = None
-                        MainMenu(data)
-                    else:
-                        return False
+class RegisterScene(BaseScene):
+    def __init__(self, game):
+        super().__init__(game)
+        cx = BASE_WIDTH // 2
+        self.font  = game.assets.get_font("body")
+        self.title = game.assets.get_font("title")
+        self.error = ""
+
+        self.username_input = _TextInput((cx - 200, 380, 400, 50), "Choose username", font=self.font)
+        self.password_input = _TextInput((cx - 200, 460, 400, 50), "Choose password", password=True, font=self.font)
+
+        self.register_btn = Button((cx - 200, 550, 190, 60), "REGISTER", self._do_register)
+        self.back_btn     = Button((cx +  10, 550, 190, 60), "BACK",     self._back)
+
+    def _do_register(self):
+        username = self.username_input.text.strip()
+        password = self.password_input.text.encode()
+        if not username or not password:
+            self.error = "Please fill in both fields."
+            return
+        if len(password) < 4:
+            self.error = "Password must be at least 4 characters."
+            return
+
+        hashed = bcrypt.hashpw(password, bcrypt.gensalt()).decode()
+        user   = self.game.db.Register(username, hashed)
+        if not user:
+            self.error = "Username already taken."
+            return
+
+        session = {"user_id": user["id"], "username": user["username"]}
+        from auth.session import save_session
+        save_session(user["id"], user["username"])
+        self.game.session        = session
+        self.game.state.user_id  = user["id"]
+        self.game.state.username = user["username"]
+
+        from scenes.menu_scene import MenuScene
+        self.game.scene_manager.switch_scene(MenuScene(self.game))
+
+    def _back(self):
+        from scenes.menu_scene import MenuScene
+        self.game.scene_manager.switch_scene(MenuScene(self.game))
+
+    def handle_events(self, events):
+        for event in events:
+            self.username_input.handle_event(event)
+            self.password_input.handle_event(event)
+            self.register_btn.handle_event(event)
+            self.back_btn.handle_event(event)
+
+    def draw(self, screen):
+        screen.fill(BACKGROUND_COLOR)
+        t = self.title.render("Register", True, BLACK)
+        screen.blit(t, t.get_rect(center=(BASE_WIDTH // 2, 260)))
+
+        self.username_input.draw(screen)
+        self.password_input.draw(screen)
+        self.register_btn.draw(screen)
+        self.back_btn.draw(screen)
+
+        if self.error:
+            err = self.font.render(self.error, True, RED)
+            screen.blit(err, err.get_rect(center=(BASE_WIDTH // 2, 640)))

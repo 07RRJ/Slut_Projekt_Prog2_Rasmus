@@ -1,5 +1,4 @@
 import pygame
-import sys, os
 from core.constants import *
 
 MENU_PATH = "assets/menu/"

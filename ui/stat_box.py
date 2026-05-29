@@ -1,6 +1,5 @@
 import pygame
 
-
 class StatBox:
     def __init__(self, state):
         self.state = state
