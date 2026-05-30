@@ -52,7 +52,7 @@ class LoginScene(BaseScene):
             self.error = "Please fill in both fields"
             return
 
-        user = self.game.db.Login(username)
+        user = self.game.db.login(username)
         if not user:
             self.error = "User not found"
             return

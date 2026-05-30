@@ -17,9 +17,9 @@ class ShopScene(BaseScene):
         if all(card is None for card in game.state.team):
             self.ctrl.refresh_team()
 
-        self.card_pos = [(50 + i * 150, BASE_HEIGHT-230, i) for i in range(5)]
+        self.card_pos = [(50 + i * 150, BASE_HEIGHT-230) for i in range(5)]
 
-        self.team_slots = [TeamSlot(self.card_pos[i]) for i in range(5)]
+        self.team_slots = [TeamSlot(*self.card_pos[i], i) for i in range(5)]
         self.reroll_btn = Button((BASE_WIDTH-440, BASE_HEIGHT-230, 180, 70), "reroll", self.reroll)
         self.ready_btn = Button((BASE_WIDTH-230, BASE_HEIGHT-230, 180, 70), "ready", self.ready)
         self.stat_box = StatBox(game.state)
@@ -70,7 +70,7 @@ class ShopScene(BaseScene):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mx, my = event.pos
                 for i, card in enumerate(self.game.state.shop_cards):
-                    card_view = CardView(self.card_pos[i])
+                    card_view = CardView(card, *self.card_pos[i])
                     if card_view.rect.collidepoint(mx, my):
                         self.selected_shop_idx = i
                         self.message = f"Selected {card.name}, click a slot"
@@ -90,7 +90,7 @@ class ShopScene(BaseScene):
         screen.blit(body.render("stat up:", True, BLUE), (600, 100))
 
         for i, card in enumerate(self.game.state.shop_cards):
-            CardView(card, self.card_pos[i], selected=(i == self.selected_shop_idx)).draw(screen)
+            CardView(card, *self.card_pos[i], selected=(i == self.selected_shop_idx)).draw(screen)
 
         for slot in self.team_slots:
             slot.draw(screen, self.game.state.team[slot.index])
