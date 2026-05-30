@@ -126,7 +126,7 @@ class GameController:
         new_turn = player["turn"] + 1
 
         if new_hp <= 0:
-            self.db.EndRun(my_id, won=False)
+            self.db.end_run(my_id, won=False)
         else:
             self.db.update_player(my_id, {
                 "health": new_hp,

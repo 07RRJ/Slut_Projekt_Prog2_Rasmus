@@ -45,7 +45,7 @@ class BattleScene(BaseScene):
             if event.type == pygame.MOUSEBUTTONDOWN and self.done:
                 from scenes.shop_scene import ShopScene
                 from scenes.menu_scene import MenuScene
-                player = self.game.db.GetPlayer(self.game.state.user_id)
+                player = self.game.db.get_player(self.game.state.user_id)
                 if player:
                     self.game.scene_manager.switch_scene(ShopScene(self.game))
                 else:
@@ -69,10 +69,10 @@ class BattleScene(BaseScene):
             screen.blit(surf, surf.get_rect(center=(log_x, log_y + i * 34)))
 
         if self.done:
-            w = self.result["winner"]
-            if w == "a":
+            winner = self.result["winner"]
+            if winner == "a":
                 banner_text, color = "YOU WIN!", GOLD
-            elif w == "b":
+            elif winner == "b":
                 banner_text, color = "YOU LOSE", RED
             else:
                 banner_text, color = "DRAW", GRAY

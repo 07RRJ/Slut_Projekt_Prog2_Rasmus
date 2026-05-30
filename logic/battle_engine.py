@@ -65,7 +65,7 @@ class BattleEngine:
         else:
             winner = "draw"
 
-        log.append(f"\nResult: {winner.upper()} wins" if winner != "draw" else "\n Draw!")
+        log.append(f"Result: {winner.upper()} wins" if winner != "draw" else "\n Draw!")
 
         return {
             "winner": winner,
