@@ -25,7 +25,7 @@ class GameState:
         from models.card_model import Card
         self.team = [None] * 5
         for row in player_cards:
-            c = Card(
+            card = Card(
                 id = row["id"],
                 card_id = row["card_id"],
                 name = row["cards"]["name"],
@@ -35,13 +35,13 @@ class GameState:
                 ability = row["cards"].get("ability", ""),
                 slot = row["slot"],
             )
-            self.team[row["slot"]] = c
+            self.team[row["slot"]] = card
 
     def load_enemy_team(self, player_cards: list) -> None:
         from models.card_model import Card
         self.enemy_team = [None] * 5
         for row in player_cards:
-            c = Card(
+            card = Card(
                 id = row["id"],
                 card_id = row["card_id"],
                 name = row["cards"]["name"],
@@ -51,4 +51,4 @@ class GameState:
                 ability = row["cards"].get("ability", ""),
                 slot = row["slot"],
             )
-            self.enemy_team[row["slot"]] = c
+            self.enemy_team[row["slot"]] = card

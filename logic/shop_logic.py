@@ -1,4 +1,3 @@
-import random
 from models.card_model import Card
 
 class ShopLogic:
@@ -8,14 +7,14 @@ class ShopLogic:
         cards = []
         for row in db_rows:
             cards.append(Card(
-                id      = row["id"],
+                id = row["id"],
                 card_id = row["id"],
-                name    = row["name"],
-                attack  = row["base_attack"],
-                health  = row["base_health"],
-                level   = 1,
+                name = row["name"],
+                attack = row["base_attack"],
+                health = row["base_health"],
+                level = 1,
                 ability = row.get("ability", ""),
-                slot    = -1,   # not placed yet
+                slot = -1, # not placed yet
             ))
         return cards
 
@@ -28,4 +27,4 @@ class ShopLogic:
         for i, card in enumerate(team):
             if card is None:
                 return i
-        return None   # team full
+        return None # team full

@@ -19,12 +19,12 @@ class Game:
         self.assets = AssetManager()
         self.db = Database()
         self.state = GameState()
-        self.session = load_session()   # None if not logged in
+        self.session = load_session() # None if not logged in
 
         if self.session:
             self.state.user_id = self.session["user_id"]
             self.state.username = self.session["username"]
-            player = self.db.GetPlayer(self.session["user_id"])
+            player = self.db.get_player(self.session["user_id"])
             if player:
                 self.state.load_from_db(player, self.session)
 
@@ -34,7 +34,7 @@ class Game:
     def set_icon(self):
         pygame.display.set_icon(self.assets.get_image("icon"))
 
-    def Run(self):
+    def run(self):
         while self.running:
             events = pygame.event.get()
             for event in events:

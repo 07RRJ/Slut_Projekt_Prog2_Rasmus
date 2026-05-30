@@ -1,18 +1,18 @@
-import pygame, time
-from scenes.base_scene               import BaseScene
+import time
+from scenes.base_scene import BaseScene
 from logic.controllers.game_controller import GameController
-from core.constants                  import *
+from core.constants import *
 
 class WaitingReadyScene(BaseScene):
-    POLL_EVERY = 2
+    POLL_EVERY = 2 # seconds
 
     def __init__(self, game):
         super().__init__(game)
-        self.ctrl      = GameController(game)
-        self.font      = game.assets.get_font("body")
-        self.title     = game.assets.get_font("title")
+        self.ctrl = GameController(game)
+        self.font = game.assets.get_font("body")
+        self.title = game.assets.get_font("title")
         self.last_poll = 0
-        self.dots      = 0
+        self.dots = 0 # loading thingy
 
     def update(self):
         now = time.time()
@@ -29,4 +29,4 @@ class WaitingReadyScene(BaseScene):
     def draw(self, screen):
         screen.fill(BACKGROUND_COLOR)
         msg = self.title.render("Waiting for opponent" + "." * self.dots, True, BLACK)
-        screen.blit(msg, msg.get_rect(center=(BASE_WIDTH // 2, BASE_HEIGHT // 2)))
+        screen.blit(msg, msg.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))

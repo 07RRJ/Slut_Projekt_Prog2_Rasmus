@@ -1,22 +1,22 @@
 import pygame
 from scenes.base_scene import BaseScene
-from core.constants    import WHITE, BLACK, BASE_WIDTH, BASE_HEIGHT
+from core.constants import *
 
 class LoadingScene(BaseScene):
     def __init__(self, game):
         super().__init__(game)
-        self.done   = False
-        self.font   = pygame.font.SysFont("arial", 36)
-        self._load_assets()
+        self.done = False
+        self.font = pygame.font.SysFont("arial", 36)
+        self.load_assets()
 
-    def _load_assets(self):
-        a = self.game.assets
-        a.load_image("icon",       "assets/icon/icon.png")
-        a.load_image("background", "assets/menu/mainMenu.png")
-        a.load_image("card1",      "assets/cards/card_1.png")
-        a.load_font("title", "assets/fonts/COPRGTB.TTF",  64)
-        a.load_font("body",  "assets/fonts/CORBEL.TTF",   28)
-        a.load_font("bold",  "assets/fonts/CORBELB.TTF",  28)
+    def load_assets(self):
+        assets = self.game.assets
+        assets.load_image("icon", "assets/icon/icon.png")
+        assets.load_image("background", "assets/menu/mainMenu.png")
+        assets.load_image("card1", "assets/cards/card_1.png")
+        assets.load_font("title", "assets/fonts/COPRGTB.TTF", 64)
+        assets.load_font("body", "assets/fonts/CORBEL.TTF", 28)
+        assets.load_font("bold", "assets/fonts/CORBELB.TTF", 28)
         self.done = True
 
     def update(self):

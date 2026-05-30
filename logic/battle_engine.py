@@ -5,23 +5,23 @@ class BattleEngine:
 
     @staticmethod
     def simulate(team_a: list, team_b: list) -> dict:
-        a = [copy.copy(c) if c else None for c in team_a]
-        b = [copy.copy(c) if c else None for c in team_b]
+        a = [copy.copy(card) if card else None for card in team_a]
+        b = [copy.copy(card) if card else None for card in team_b]
 
         log = []
 
         def alive(team):
-            return [c for c in team if c and c.is_alive()]
+            return [card for card in team if card and card.is_alive()]
 
-        MAX_TICKS = 200
+        MAX_TICKS = 10000
         tick = 0
 
-        a_total_atk = sum(c.attack for c in alive(a))
-        b_total_atk = sum(c.attack for c in alive(b))
-        a_goes_first = a_total_atk >= b_total_atk
+        a_total_atk = sum(card.attack for card in alive(a))
+        b_total_atk = sum(card.attack for card in alive(b))
+        a_goes_first = b_total_atk >= a_total_atk
 
-        a_ptr = 0
-        b_ptr = 0
+        a_pointer = 0
+        b_pointer = 0
 
         while alive(a) and alive(b) and tick < MAX_TICKS:
             tick += 1
@@ -29,31 +29,31 @@ class BattleEngine:
             alive_a = alive(a)
             alive_b = alive(b)
 
-            attacker_a = alive_a[a_ptr % len(alive_a)]
+            attacker_a = alive_a[a_pointer % len(alive_a)]
             defender_b = alive_b[-1]
 
-            attacker_b = alive_b[b_ptr % len(alive_b)]
+            attacker_b = alive_b[b_pointer % len(alive_b)]
             defender_a = alive_a[-1]
 
             if a_goes_first:
-                BattleEngine._strike(attacker_a, defender_b, log)
+                BattleEngine.strike(attacker_a, defender_b, log)
                 if not defender_b.is_alive():
                     log.append(f"{defender_b.name} defeated")
                 if defender_b.is_alive():
-                    BattleEngine._strike(attacker_b, defender_a, log)
+                    BattleEngine.strike(attacker_b, defender_a, log)
                     if not defender_a.is_alive():
                         log.append(f"{defender_a.name} defeated")
             else:
-                BattleEngine._strike(attacker_b, defender_a, log)
+                BattleEngine.strike(attacker_b, defender_a, log)
                 if not defender_a.is_alive():
                     log.append(f"{defender_a.name} defeated")
                 if defender_a.is_alive():
-                    BattleEngine._strike(attacker_a, defender_b, log)
+                    BattleEngine.strike(attacker_a, defender_b, log)
                     if not defender_b.is_alive():
                         log.append(f"{defender_b.name} defeated")
 
-            a_ptr += 1
-            b_ptr += 1
+            a_pointer += 1
+            b_pointer += 1
 
         a_alive = alive(a)
         b_alive = alive(b)
@@ -75,7 +75,7 @@ class BattleEngine:
         }
 
     @staticmethod
-    def _strike(attacker: Card, defender: Card, log: list) -> None:
+    def strike(attacker: Card, defender: Card, log: list) -> None:
         defender.take_damage(attacker.attack)
         log.append(
             f"{attacker.name} (slot {attacker.slot+1}) "

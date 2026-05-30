@@ -15,9 +15,9 @@ class Button:
                 self.callback()
 
     def draw(self, screen):
-        pygame.draw.rect(screen, (0, 0, 0), self.rect, 4, border_radius=18)
+        pygame.draw.rect(screen, (40, 40, 40), self.rect, 4, border_radius=18)
 
-        text_surface = self.font.render(self.text, True, (0, 0, 0))
+        text_surface = self.font.render(self.text, True, (40, 40, 40))
 
         text_rect = text_surface.get_rect(center=self.rect.center)
 

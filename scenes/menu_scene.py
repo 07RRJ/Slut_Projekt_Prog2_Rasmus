@@ -1,62 +1,59 @@
 import pygame
-from scenes.base_scene  import BaseScene
-from ui.button          import Button
-from core.constants     import *
+from scenes.base_scene import BaseScene
+from ui.button import Button
+from core.constants import *
 
 class MenuScene(BaseScene):
     def __init__(self, game):
         super().__init__(game)
 
-        cx = BASE_WIDTH  // 2
-        cy = BASE_HEIGHT // 2
+        button_rect = [
+            (MIDDLE_WIDTH - 150, BASE_HEIGHT - 102, 300, 70),
+            (MIDDLE_WIDTH + 200, BASE_HEIGHT - 102, 300, 70),
+            (MIDDLE_WIDTH + 550, BASE_HEIGHT - 102, 300, 70)
+        ]
 
         if game.session:
-            # Logged in — show main menu
             self.mode = "main"
             self.buttons = [
-                Button((cx - 150, cy - 80,  300, 70), "PLAY",     self._play),
-                Button((cx - 150, cy + 10,  300, 70), "LOG OUT",  self._logout),
-                Button((cx - 150, cy + 100, 300, 70), "QUIT",     self._quit),
+                Button(button_rect[0], "PLAY", self.play),
+                Button(button_rect[1], "LOG OUT", self.log_out),
+                Button(button_rect[2], "QUIT", self.quit),
             ]
         else:
-            # Not logged in — show login/register
             self.mode = "auth"
             self.buttons = [
-                Button((cx - 150, cy - 80,  300, 70), "LOGIN",    self._goto_login),
-                Button((cx - 150, cy + 10,  300, 70), "REGISTER", self._goto_register),
-                Button((cx - 150, cy + 100, 300, 70), "QUIT",     self._quit),
+                Button(button_rect[0], "LOGIN", self.go_to_login),
+                Button(button_rect[1], "REGISTER", self.go_to_register),
+                Button(button_rect[2], "QUIT", self.quit),
             ]
 
         self.title_font = game.assets.get_font("title")
-        self.body_font  = game.assets.get_font("body")
+        self.body_font = game.assets.get_font("body")
 
-    # ── Button callbacks ─────────────────────────────────────
-
-    def _play(self):
+    def play(self):
         from logic.controllers.game_controller import GameController
         ctrl = GameController(self.game)
         ctrl.start_run()
         from scenes.shop_scene import ShopScene
         self.game.scene_manager.switch_scene(ShopScene(self.game))
 
-    def _logout(self):
+    def log_out(self):
         from auth.session import clear_session
         clear_session()
         self.game.session = None
         self.game.scene_manager.switch_scene(MenuScene(self.game))
 
-    def _quit(self):
+    def quit(self):
         self.game.running = False
 
-    def _goto_login(self):
+    def go_to_login(self):
         from scenes.login_scene import LoginScene
         self.game.scene_manager.switch_scene(LoginScene(self.game))
 
-    def _goto_register(self):
+    def go_to_register(self):
         from scenes.login_scene import RegisterScene
         self.game.scene_manager.switch_scene(RegisterScene(self.game))
-
-    # ── Scene interface ──────────────────────────────────────
 
     def handle_events(self, events):
         for event in events:
@@ -68,10 +65,8 @@ class MenuScene(BaseScene):
         screen.blit(pygame.transform.scale(bg, (BASE_WIDTH, BASE_HEIGHT)), (0, 0))
 
         if self.game.session:
-            name = self.body_font.render(
-                f"Welcome, {self.game.session['username']}", True, RED
-            )
-            screen.blit(name, name.get_rect(center=(BASE_WIDTH // 2, 280)))
+            name = self.body_font.render(f"{self.game.session['username']}", True, RED)
+            screen.blit(name, (32, 32))
 
         for btn in self.buttons:
             btn.draw(screen)

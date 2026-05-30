@@ -2,14 +2,14 @@ from dataclasses import dataclass
 
 @dataclass
 class Card:
-    id:      str
+    id: str
     card_id: str
-    name:    str
-    attack:  int
-    health:  int
-    level:   int
+    name: str
+    attack: int
+    health: int
+    level: int
     ability: str = ""
-    slot:    int = 0
+    slot: int = 0
 
     def is_alive(self) -> bool:
         return self.health > 0

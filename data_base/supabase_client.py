@@ -2,7 +2,7 @@ import os, random
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-def _find_env() -> str:
+def find_env() -> str:
     from pathlib import Path
     p = Path(__file__).resolve().parent
     for _ in range(5):
@@ -14,13 +14,13 @@ def _find_env() -> str:
 
 class Database:
     def __init__(self):
-        load_dotenv(_find_env())
+        load_dotenv(find_env())
         self.client: Client = create_client(
             os.getenv("DATABASE_URL"),
             os.getenv("DATABASE_PASSWORD"),
         )
 
-    def Register(self, username: str, password_hash: str) -> dict | None:
+    def register(self, username: str, password_hash: str) -> dict | None:
         try:
             res = self.client.table("users").insert({
                 "username": username.upper(),
@@ -28,9 +28,9 @@ class Database:
             }).execute()
             return res.data[0] if res.data else None
         except Exception:
-            return None   # username taken
+            return None # username taken
 
-    def Login(self, username: str) -> dict | None:
+    def login(self, username: str) -> dict | None:
         try:
             res = self.client.table("users") \
                 .select("*").eq("username", username.upper()).single().execute()
@@ -38,7 +38,7 @@ class Database:
         except Exception:
             return None
 
-    def GetUser(self, user_id: str) -> dict | None:
+    def get_user(self, user_id: str) -> dict | None:
         try:
             res = self.client.table("users") \
                 .select("*").eq("id", user_id).single().execute()
@@ -46,17 +46,17 @@ class Database:
         except Exception:
             return None
 
-    def GetLeaderboard(self, by: str = "wins", limit: int = 10) -> list:
+    def get_leaderboard(self, by: str = "wins", limit: int = 10) -> list:
         res = self.client.table("users") \
             .select("username, wins, losses") \
             .order(by, desc=True).limit(limit).execute()
         return res.data
 
-    def StartRun(self, user_id: str) -> dict:
-        self.DeletePlayer(user_id)
-        return self.CreatePlayer(user_id)
+    def start_run(self, user_id: str) -> dict:
+        self.delete_player(user_id)
+        return self.create_player(user_id)
 
-    def CreatePlayer(self, user_id: str) -> dict:
+    def create_player(self, user_id: str) -> dict:
         res = self.client.table("player").insert({
             "user_id": user_id,
             "gold": 10,
@@ -66,7 +66,7 @@ class Database:
         }).execute()
         return res.data[0]
 
-    def GetPlayer(self, user_id: str) -> dict | None:
+    def get_player(self, user_id: str) -> dict | None:
         try:
             res = self.client.table("player") \
                 .select("*").eq("user_id", user_id).single().execute()
@@ -74,32 +74,31 @@ class Database:
         except Exception:
             return None
 
-    def UpdatePlayer(self, user_id: str, fields: dict) -> None:
+    def update_player(self, user_id: str, fields: dict) -> None:
         self.client.table("player").update(fields).eq("user_id", user_id).execute()
 
-    def DeletePlayer(self, user_id: str) -> None:
+    def delete_player(self, user_id: str) -> None:
         self.client.table("player").delete().eq("user_id", user_id).execute()
 
-    def EndRun(self, user_id: str, won: bool) -> None:
-        user = self.GetUser(user_id)
+    def end_run(self, user_id: str, won: bool) -> None:
+        user = self.get_user(user_id)
         if user:
             key = "wins" if won else "losses"
             self.client.table("users") \
                 .update({key: user[key] + 1}).eq("id", user_id).execute()
-        self.DeletePlayer(user_id)
+        self.delete_player(user_id)
 
-    def GetShopOffer(self, turn: int, count: int = 3) -> list:
+    def get_shop_offer(self, turn: int, count: int = 3) -> list:
         max_tier = min(1 + turn // 3, 6)
         res = self.client.table("cards") \
             .select("*").lte("tier", max_tier).execute()
         pool = res.data or []
         return random.sample(pool, min(count, len(pool)))
 
-    def GetCardCatalogue(self) -> list:
+    def get_card_catalogue(self) -> list:
         return self.client.table("cards").select("*").execute().data
 
-    # ── Cards ────────────────────────────────────────────────
-    def BuyCard(self, user_id: str, card_id: str, slot: int) -> dict:
+    def buy_card(self, user_id: str, card_id: str, slot: int) -> dict:
         existing = self.client.table("player_cards") \
             .select("*").eq("user_id", user_id).eq("card_id", card_id) \
             .lt("level", 3).limit(1).execute()
@@ -107,7 +106,7 @@ class Database:
         if existing.data:
             card = existing.data[0]
             self.client.table("player_cards").update({
-                "level":  card["level"]  + 1,
+                "level": card["level"] + 1,
                 "attack": card["attack"] + 1,
                 "health": card["health"] + 1,
             }).eq("id", card["id"]).execute()
@@ -119,44 +118,43 @@ class Database:
         res = self.client.table("player_cards").insert({
             "user_id": user_id,
             "card_id": card_id,
-            "slot":    slot,
-            "attack":  blueprint["base_attack"],
-            "health":  blueprint["base_health"],
-            "level":   1,
+            "slot": slot,
+            "attack": blueprint["base_attack"],
+            "health": blueprint["base_health"],
+            "level": 1,
         }).execute()
         return {"merged": False, "card": res.data[0]}
 
-    def SellCard(self, player_card_id: str, user_id: str) -> None:
+    def sell_card(self, player_card_id: str, user_id: str) -> None:
         self.client.table("player_cards").delete().eq("id", player_card_id).execute()
-        player = self.GetPlayer(user_id)
+        player = self.get_player(user_id)
         if player:
-            self.UpdatePlayer(user_id, {"gold": player["gold"] + 1})
+            self.update_player(user_id, {"gold": player["gold"] + 1})
 
-    def MoveCard(self, player_card_id: str, new_slot: int) -> None:
+    def move_card(self, player_card_id: str, new_slot: int) -> None:
         self.client.table("player_cards") \
             .update({"slot": new_slot}).eq("id", player_card_id).execute()
 
-    def GetTeam(self, user_id: str) -> list:
+    def get_team(self, user_id: str) -> list:
         res = self.client.table("player_cards") \
             .select("*, cards(name, ability, cost)") \
             .eq("user_id", user_id).order("slot").execute()
         return res.data
 
-    def RerollShop(self, user_id: str) -> bool:
-        player = self.GetPlayer(user_id)
+    def reroll_shop(self, user_id: str) -> bool:
+        player = self.get_player(user_id)
         if not player or player["gold"] < 1:
             return False
-        self.UpdatePlayer(user_id, {"gold": player["gold"] - 1})
+        self.update_player(user_id, {"gold": player["gold"] - 1})
         return True
 
-    # ── Matchmaking ──────────────────────────────────────────
-    def FindOrCreateMatch(self, user_id: str, turn: int) -> dict:
+    def find_or_create_match(self, user_id: str, turn: int) -> dict:
         return self.client.rpc("find_or_create_match", {
             "p_user_id": user_id,
-            "p_turn":    turn,
+            "p_turn": turn,
         }).execute().data
 
-    def GetMatch(self, match_id: str) -> dict | None:
+    def get_match(self, match_id: str) -> dict | None:
         try:
             res = self.client.table("game_manager") \
                 .select("*").eq("id", match_id).single().execute()
@@ -164,8 +162,8 @@ class Database:
         except Exception:
             return None
 
-    def ResolveMatch(self, match_id: str, winner_id: str | None) -> None:
+    def resolve_match(self, match_id: str, winner_id: str | None) -> None:
         self.client.table("game_manager").update({
-            "phase":     "done",
+            "phase": "done",
             "winner_id": winner_id,
         }).eq("id", match_id).execute()
