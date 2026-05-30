@@ -80,8 +80,10 @@ class Database:
     def force_cleanup_player(self, user_id: str) -> None:
         """
         Hard-delete player + cards for this user regardless of age.
-        Used when the player explicitly starts a new run.
+        Deletes player_cards explicitly first — don't rely on FK cascade
+        through the Supabase REST client.
         """
+        self.client.table("player_cards").delete().eq("user_id", user_id).execute()
         self.client.table("player").delete().eq("user_id", user_id).execute()
 
     # ── Player run ───────────────────────────────────────────
@@ -122,6 +124,7 @@ class Database:
             pass
 
     def delete_player(self, user_id: str) -> None:
+        self.client.table("player_cards").delete().eq("user_id", user_id).execute()
         self.client.table("player").delete().eq("user_id", user_id).execute()
 
     def end_run(self, user_id: str, won: bool) -> None:
