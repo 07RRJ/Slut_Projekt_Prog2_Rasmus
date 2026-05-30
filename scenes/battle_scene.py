@@ -20,22 +20,15 @@ from ui.team_slot                      import TeamSlot
 from ui.stat_box                       import StatBox
 from core.constants                    import *
 
-CARD_W, CARD_H = 120, 180
-SLOT_GAP       = 20
-SLIDE_TIME     = 0.35   # seconds for the projectile to travel
-PAUSE_AFTER    = 0.25   # seconds to pause after each event before next
+SLIDE_TIME  = 0.35   # seconds for the projectile to travel
+PAUSE_AFTER = 0.25   # seconds to pause after each event before next
 
-# ── Layout helpers ────────────────────────────────────────────────────────────
+# ── Layout helpers (use shared constants) ─────────────────────────────────────
 def _my_slot_rect(slot_index: int) -> pygame.Rect:
-    x = MARGIN + slot_index * (CARD_W + SLOT_GAP)
-    y = BASE_HEIGHT - CARD_H - MARGIN - 60
-    return pygame.Rect(x, y, CARD_W, CARD_H)
+    return pygame.Rect(my_slot_x(slot_index), my_slot_y(), CARD_W, CARD_H)
 
 def _opp_slot_rect(slot_index: int) -> pygame.Rect:
-    # Opponent row: mirrored (slot 0 on right, slot 4 on left)
-    x = BASE_WIDTH - MARGIN - CARD_W - slot_index * (CARD_W + SLOT_GAP)
-    y = MARGIN + 60
-    return pygame.Rect(x, y, CARD_W, CARD_H)
+    return pygame.Rect(opp_slot_x(slot_index), opp_slot_y(), CARD_W, CARD_H)
 
 def _slot_rect(side: str, slot: int) -> pygame.Rect:
     return _my_slot_rect(slot) if side == "a" else _opp_slot_rect(slot)

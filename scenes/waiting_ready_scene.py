@@ -1,12 +1,13 @@
 """
 WaitingReadyScene — waits for both players to signal shop-ready.
 
-Stability rules implemented here:
+Stability rules:
   - Poll every 2 s for phase == 'battling'
+  - Also detect phase == 'done' (P1 already finished the battle while P2
+    was stuck here) → go straight to BattleScene so P2 can finalise their side.
   - If player1 hasn't sent a heartbeat for > P1_GONE_THRESHOLD seconds,
     start a visible countdown (P2_GRACE_SECONDS) for P2 to claim the win.
-  - If that countdown expires, P2 wins by default (resolve_match called locally
-    by P2 to unblock the game; a tiny race window exists but is acceptable).
+  - After that countdown expires P2 wins by default.
   - P2 detection: match["player2_id"] == my user_id
 """
 
@@ -15,11 +16,8 @@ from scenes.base_scene import BaseScene
 from logic.controllers.game_controller import GameController
 from core.constants import *
 
-# How long (s) P1 must be silent before we consider them gone
-P1_GONE_THRESHOLD  = 120   # 2 minutes
-
-# Grace period (s) P2 gets to watch before claiming default win
-P2_GRACE_SECONDS   = 30
+P1_GONE_THRESHOLD = 120   # seconds of silence before P1 is considered gone
+P2_GRACE_SECONDS  = 30    # countdown P2 sees before claiming default win
 
 class WaitingReadyScene(BaseScene):
     POLL_EVERY = 2  # seconds
@@ -32,52 +30,43 @@ class WaitingReadyScene(BaseScene):
         self.last_poll = 0
         self.dots      = 0
 
-        # P1-gone detection (only meaningful for P2)
-        self.p1_gone_since: float | None = None   # time.time() when we first noticed
+        self.p1_gone_since: float | None = None
         self.default_win_claimed = False
+
+    # ── Helpers ──────────────────────────────────────────────
 
     def _am_player2(self) -> bool:
         match = self.game.state.match
         return bool(match and match.get("player2_id") == self.game.state.user_id)
 
     def _p1_ready(self) -> bool:
-        """shop_ready >= 1 means player1 already signalled."""
         match = self.game.state.match
         return bool(match and match.get("shop_ready", 0) >= 1)
 
+    def _go_to_battle(self):
+        from scenes.battle_scene import BattleScene
+        self.game.scene_manager.switch_scene(BattleScene(self.game))
+
     def _check_p1_gone(self) -> None:
-        """
-        For P2: poll how long since P1's last heartbeat.
-        If > threshold, start the grace countdown.
-        """
-        if not self._am_player2():
-            return
-        if self._p1_ready():
-            # P1 already ready — no need to check
+        if not self._am_player2() or self._p1_ready():
             self.p1_gone_since = None
             return
-
         match = self.game.state.match
         if not match:
             return
-
         secs_silent = self.game.db.p1_last_seen(match["id"])
         if secs_silent is None:
-            # Can't determine — be generous, don't trigger
             return
-
         if secs_silent > P1_GONE_THRESHOLD:
             if self.p1_gone_since is None:
                 self.p1_gone_since = time.time()
         else:
-            # P1 came back
             self.p1_gone_since = None
 
     def _grace_seconds_left(self) -> int | None:
         if self.p1_gone_since is None:
             return None
-        elapsed = time.time() - self.p1_gone_since
-        return max(0, int(P2_GRACE_SECONDS - elapsed))
+        return max(0, int(P2_GRACE_SECONDS - (time.time() - self.p1_gone_since)))
 
     def _claim_default_win(self) -> None:
         if self.default_win_claimed:
@@ -85,13 +74,9 @@ class WaitingReadyScene(BaseScene):
         self.default_win_claimed = True
         match = self.game.state.match
         if match:
-            # Resolve match with P2 as winner
             self.game.db.resolve_match(match["id"], self.game.state.user_id)
             self.game.state.match = self.game.db.get_match(match["id"])
-        # Proceed to battle scene — BattleScene will see the resolved match
-        # and award the win correctly via run_battle()
-        from scenes.battle_scene import BattleScene
-        self.game.scene_manager.switch_scene(BattleScene(self.game))
+        self._go_to_battle()
 
     # ── Scene interface ──────────────────────────────────────
 
@@ -101,15 +86,21 @@ class WaitingReadyScene(BaseScene):
             self.last_poll = now
             self.dots = (self.dots + 1) % 4
 
-            if self.ctrl.poll_both_ready():
-                from scenes.battle_scene import BattleScene
-                self.game.scene_manager.switch_scene(BattleScene(self.game))
-                return
+            match = self.ctrl.poll_match()
+            if match:
+                phase = match.get("phase", "")
+                if phase == "battling":
+                    self._go_to_battle()
+                    return
+                # P1 resolved the match (wrote 'done') before P2 got to battle.
+                # Go to BattleScene anyway — run_battle() will read the resolved
+                # winner and handle health / turn progression correctly.
+                if phase == "done":
+                    self._go_to_battle()
+                    return
 
-            # P2 disconnect-detection
             self._check_p1_gone()
 
-        # Check if grace period expired → claim default win
         if self._am_player2() and not self.default_win_claimed:
             left = self._grace_seconds_left()
             if left is not None and left == 0:
@@ -124,20 +115,14 @@ class WaitingReadyScene(BaseScene):
         msg = self.title.render("Waiting for opponent" + "." * self.dots, True, BLACK)
         screen.blit(msg, msg.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))
 
-        body = self.font
-
-        # P1-gone warning (only shown to P2)
         left = self._grace_seconds_left()
         if left is not None:
-            # Show red warning
-            warn = body.render(
-                f"Opponent has left the shop — claiming win in {left}s…",
-                True, RED
+            warn = self.font.render(
+                f"Opponent has left — claiming win in {left}s…", True, RED
             )
             screen.blit(warn, warn.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT + 80)))
         elif self._am_player2() and not self._p1_ready():
-            # Show soft nudge
-            hint = body.render(
+            hint = self.font.render(
                 "Waiting for Player 1 to finish shopping…", True, GRAY
             )
             screen.blit(hint, hint.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT + 80)))

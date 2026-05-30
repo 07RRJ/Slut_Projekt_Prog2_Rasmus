@@ -60,8 +60,8 @@ class PreviewScene(BaseScene):
         self.start = time.time()
         self.stat_box = StatBox(game.state)
 
-        self.my_slots = [TeamSlot(50 + i * 150, 560, i) for i in range(5)]
-        self.opp_slots = [TeamSlot(900 - i * 150, 100, i) for i in range(5)]
+        self.my_slots  = [TeamSlot(my_slot_x(i),  my_slot_y(),  i) for i in range(5)]
+        self.opp_slots = [TeamSlot(opp_slot_x(i), opp_slot_y(), i) for i in range(5)]
 
     def update(self):
         if time.time() - self.start >= self.PREVIEW_SECONDS:

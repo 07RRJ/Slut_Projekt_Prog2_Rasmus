@@ -31,8 +31,26 @@ class MenuScene(BaseScene):
         self.title_font = game.assets.get_font("title")
         self.body_font  = game.assets.get_font("body")
 
-    # ── Play → Shop first, then matchmaking ──────────────────
+    # ── Play → wipe all stale state, fresh start ─────────────
     def play(self):
+        uid = self.game.state.user_id
+
+        # Hard-delete everything for this player so they always start clean:
+        # game_manager rows, player_cards (via FK cascade), player row.
+        db = self.game.db
+        try:
+            db.client.table("game_manager") \
+                .delete() \
+                .eq("player1_id", uid) \
+                .execute()
+            db.client.table("game_manager") \
+                .delete() \
+                .eq("player2_id", uid) \
+                .execute()
+        except Exception:
+            pass
+        db.force_cleanup_player(uid)   # deletes player → cascades player_cards
+
         from logic.controllers.game_controller import GameController
         ctrl = GameController(self.game)
         ctrl.start_run()
