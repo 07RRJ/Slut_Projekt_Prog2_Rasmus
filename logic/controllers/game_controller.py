@@ -35,7 +35,6 @@ class GameController:
     def push_deck_state(self) -> None:
         """Flush the in-memory team to the DB. Called at: ready, auto-ready, 30s checkpoint."""
         self.db.push_deck_state(self.state.user_id, self.state.team)
-        # Also persist current gold
         self.db.update_player(self.state.user_id, {"gold": self.state.gold})
 
     # ── Local-only shop actions (NO DB calls) ────────────────
@@ -43,26 +42,28 @@ class GameController:
         """
         Buy a card into a specific slot — pure in-memory, no DB.
         Returns False if can't afford or slot is occupied by a different card.
-        Merges if same card_id at <level 3.
+        Merges if same card_id exists at <level 3 anywhere in team.
         """
         cost = getattr(shop_card, "cost", 3)
         if not ShopLogic.can_afford(self.state.gold, cost):
             return False
 
-        existing = self.state.team[slot]
-        if existing is not None:
-            # Only allow if it's a merge
-            if existing.card_id == shop_card.card_id and existing.level < 3:
+        # First: search ALL slots for a mergeable card (same card_id, level < 3)
+        for i, existing in enumerate(self.state.team):
+            if existing is not None and existing.card_id == shop_card.card_id and existing.level < 3:
                 existing.level  += 1
                 existing.attack += 1
                 existing.health += 1
                 self.state.gold -= cost
                 return True
-            return False  # occupied by different card
 
-        # Place new card in the slot
+        # Second: check if target slot is empty
+        if self.state.team[slot] is not None:
+            return False  # slot occupied by a different card
+
+        # Third: place new card in the slot
         new_card = Card(
-            id      = f"local_{slot}_{shop_card.card_id}",  # temp id until push
+            id      = f"local_{slot}_{shop_card.card_id}",
             card_id = shop_card.card_id,
             name    = shop_card.name,
             attack  = shop_card.attack,
@@ -104,10 +105,8 @@ class GameController:
         card_b = self.state.team[slot_b]
         if card_a is None and card_b is None:
             return False
-        # Swap in memory
         self.state.team[slot_a] = card_b
         self.state.team[slot_b] = card_a
-        # Update slot field on each card object
         if card_a is not None:
             card_a.slot = slot_b
         if card_b is not None:
@@ -141,10 +140,31 @@ class GameController:
         self.push_deck_state()
         if not self.state.match:
             return
-        updated = self.db.client.rpc(
-            "player_ready", {"p_match_id": self.state.match["id"]}
-        ).execute().data
-        self.state.match = updated
+        try:
+            updated = self.game.db.client.rpc(
+                "player_ready", {"p_match_id": self.state.match["id"]}
+            ).execute().data
+            if updated:
+                self.state.match = updated
+            else:
+                print("ERROR: player_ready RPC returned empty!")
+                print("SOLUTION: Run this SQL in your Supabase editor:")
+                print("""
+CREATE OR REPLACE FUNCTION player_ready(p_match_id uuid)
+RETURNS json LANGUAGE plpgsql AS $$
+DECLARE result json;
+BEGIN
+  UPDATE game_manager
+  SET shop_ready = shop_ready + 1,
+      phase = CASE WHEN shop_ready + 1 >= 2 THEN 'battling' ELSE phase END
+  WHERE id = p_match_id;
+  SELECT row_to_json(g) INTO result FROM game_manager g WHERE id = p_match_id;
+  RETURN result;
+END; $$;
+                """)
+        except Exception as e:
+            print(f"ERROR calling player_ready RPC: {e}")
+            print("SOLUTION: Make sure you've run the db.sql script in Supabase to create the function.")
 
     def poll_both_ready(self) -> bool:
         match = self.poll_match()
@@ -175,7 +195,6 @@ class GameController:
         else:
             winner_id, i_won = None, False
 
-        # Only player1 writes the match result to avoid double-write
         if match["player1_id"] == my_id:
             self.db.resolve_match(match["id"], winner_id)
 

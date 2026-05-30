@@ -3,7 +3,6 @@
 --  Safe to re-run (uses IF NOT EXISTS / OR REPLACE)
 -- ============================================================
 
--- ── Static catalogue ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.cards (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     name        text NOT NULL,
@@ -12,11 +11,10 @@ CREATE TABLE IF NOT EXISTS public.cards (
     base_health int2 NOT NULL,
     ability     text,
     cost        int2 NOT NULL DEFAULT 3,
-    speed       int2 NOT NULL DEFAULT 5,   -- lower = faster
+    speed       int2 NOT NULL DEFAULT 5,
     created_at  timestamptz DEFAULT now()
 );
 
--- ── Accounts ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.users (
     id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     username      text NOT NULL UNIQUE,
@@ -26,7 +24,6 @@ CREATE TABLE IF NOT EXISTS public.users (
     created_at    timestamptz DEFAULT now()
 );
 
--- ── Active run state ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.player (
     id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -35,11 +32,10 @@ CREATE TABLE IF NOT EXISTS public.player (
     health     int2 NOT NULL DEFAULT 10,
     status     text NOT NULL DEFAULT 'shopping'
                CHECK (status IN ('shopping','searching','previewing','in_match')),
-    last_seen  timestamptz DEFAULT now(),  -- heartbeat for disconnect detection
+    last_seen  timestamptz DEFAULT now(),
     created_at timestamptz DEFAULT now()
 );
 
--- ── Player's live card instances ─────────────────────────────
 CREATE TABLE IF NOT EXISTS public.player_cards (
     id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -53,52 +49,30 @@ CREATE TABLE IF NOT EXISTS public.player_cards (
     UNIQUE (user_id, slot)
 );
 
--- ── Matchmaking + active games ───────────────────────────────
 CREATE TABLE IF NOT EXISTS public.game_manager (
-    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    player1_id  uuid NOT NULL REFERENCES users(id),
-    player2_id  uuid REFERENCES users(id),
-    turn        int2 NOT NULL,
-    phase       text NOT NULL DEFAULT 'waiting'
-                CHECK (phase IN ('waiting','previewing','shopping','battling','done')),
-    winner_id   uuid REFERENCES users(id),
-    shop_ready  int2 NOT NULL DEFAULT 0,
-    created_at  timestamptz DEFAULT now()
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    player1_id      uuid NOT NULL REFERENCES users(id),
+    player2_id      uuid REFERENCES users(id),
+    turn            int2 NOT NULL,
+    phase           text NOT NULL DEFAULT 'waiting'
+                    CHECK (phase IN ('waiting','previewing','shopping','battling','done')),
+    shop_ready      int2 NOT NULL DEFAULT 0,
+    preview_ready   int2 NOT NULL DEFAULT 0,
+    winner_id       uuid REFERENCES users(id),
+    created_at      timestamptz DEFAULT now()
 );
 
--- ── Indexes ──────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_player_user       ON player       (user_id);
 CREATE INDEX IF NOT EXISTS idx_player_cards_user ON player_cards (user_id);
 CREATE INDEX IF NOT EXISTS idx_gm_phase_turn     ON game_manager (phase, turn);
 
--- ── Stale-data cleanup (run on login / new-run start) ────────
--- Removes player rows older than 2 hours for a given user_id.
--- Cascade FK handles player_cards automatically.
--- Also clears open game_manager rows created by that player.
-CREATE OR REPLACE FUNCTION cleanup_stale_data(p_user_id uuid)
-RETURNS void LANGUAGE plpgsql AS $$
-BEGIN
-  DELETE FROM player
-    WHERE user_id = p_user_id
-      AND created_at < now() - interval '2 hours';
-
-  DELETE FROM game_manager
-    WHERE player1_id = p_user_id
-      AND phase IN ('waiting', 'previewing', 'shopping')
-      AND created_at < now() - interval '2 hours';
-END;
-$$;
-
--- ── Atomic matchmaking ───────────────────────────────────────
+-- ── Atomic matchmaking ─────────────────────────────────────
 CREATE OR REPLACE FUNCTION find_or_create_match(p_user_id uuid, p_turn int2)
 RETURNS json LANGUAGE plpgsql AS $$
 DECLARE
   existing_id uuid;
   result      json;
 BEGIN
-  -- Clean up this player's stale data first
-  PERFORM cleanup_stale_data(p_user_id);
-
   SELECT id INTO existing_id
   FROM game_manager
   WHERE phase = 'waiting' AND turn = p_turn AND player1_id != p_user_id
@@ -106,7 +80,7 @@ BEGIN
 
   IF existing_id IS NOT NULL THEN
     UPDATE game_manager
-    SET player2_id = p_user_id, phase = 'previewing'
+    SET player2_id = p_user_id, phase = 'previewing', preview_ready = 0, shop_ready = 0
     WHERE id = existing_id;
     SELECT row_to_json(g) INTO result FROM game_manager g WHERE id = existing_id;
   ELSE
@@ -119,7 +93,7 @@ BEGIN
 END;
 $$;
 
--- ── Ready signal (atomic counter) ───────────────────────────
+-- ── Signal both ready (increments shop_ready counter) ────────
 CREATE OR REPLACE FUNCTION player_ready(p_match_id uuid)
 RETURNS json LANGUAGE plpgsql AS $$
 DECLARE
@@ -136,7 +110,7 @@ BEGIN
 END;
 $$;
 
--- ── Starter cards ────────────────────────────────────────────
+-- ── Starter cards ──────────────────────────────────────────
 INSERT INTO public.cards (name, tier, base_attack, base_health, ability, cost, speed) VALUES
   ('Spades',   1, 3, 6, 'none', 3, 5),
   ('Hearts',   1, 5, 3, 'none', 3, 4),
@@ -145,7 +119,3 @@ INSERT INTO public.cards (name, tier, base_attack, base_health, ability, cost, s
   ('Joker',    2, 4, 5, 'none', 4, 5),
   ('Ace',      2, 7, 4, 'none', 4, 2)
 ON CONFLICT DO NOTHING;
-
--- ── Migration note ───────────────────────────────────────────
--- If upgrading an existing DB, run these once:
---   ALTER TABLE player ADD COLUMN IF NOT EXISTS last_seen timestamptz DEFAULT now();
