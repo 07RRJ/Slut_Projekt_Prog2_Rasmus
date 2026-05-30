@@ -164,11 +164,11 @@ class BattleScene(BaseScene):
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and self.done:
-                from scenes.shop_scene import ShopScene
+                from scenes.match_making_scene import MatchMakingScene
                 from scenes.menu_scene import MenuScene
                 player = self.game.db.get_player(self.game.state.user_id)
                 if player:
-                    self.game.scene_manager.switch_scene(ShopScene(self.game))
+                    self.game.scene_manager.switch_scene(MatchMakingScene(self.game))
                 else:
                     self.game.scene_manager.switch_scene(MenuScene(self.game))
 

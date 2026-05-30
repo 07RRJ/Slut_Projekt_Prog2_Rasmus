@@ -10,7 +10,7 @@ class GameState:
         self.enemy_team: list      = [None] * 5
         self.shop_cards: list      = []   # Card instances (new cards section)
         self.stat_ups:   list      = []   # StatUp offer instances
-        self.match:      dict | None = None
+        self.match:      dict|None = None
 
         self.selected_card = None         # shop Card currently selected
 

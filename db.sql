@@ -1,64 +1,77 @@
+-- ============================================================
+--  Cards of Rebellion — full schema
+--  Safe to re-run (uses IF NOT EXISTS / OR REPLACE)
+-- ============================================================
+
+-- ── Static catalogue ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.cards (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name        text NOT NULL,
-  tier        int2 NOT NULL DEFAULT 1 CHECK (tier BETWEEN 1 AND 6),
-  base_attack int2 NOT NULL,
-  base_health int2 NOT NULL,
-  ability     text,
-  cost        int2 NOT NULL DEFAULT 3,
-  speed       int2 NOT NULL DEFAULT 5,   -- lower = faster
-  created_at  timestamptz DEFAULT now()
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        text NOT NULL,
+    tier        int2 NOT NULL DEFAULT 1 CHECK (tier BETWEEN 1 AND 6),
+    base_attack int2 NOT NULL,
+    base_health int2 NOT NULL,
+    ability     text,
+    cost        int2 NOT NULL DEFAULT 3,
+    speed       int2 NOT NULL DEFAULT 5,   -- lower = faster
+    created_at  timestamptz DEFAULT now()
 );
 
+-- ── Accounts ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.users (
-  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  username      text NOT NULL UNIQUE,
-  password_hash text NOT NULL,
-  wins          int2 NOT NULL DEFAULT 0,
-  losses        int2 NOT NULL DEFAULT 0,
-  created_at    timestamptz DEFAULT now()
+    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    username      text NOT NULL UNIQUE,
+    password_hash text NOT NULL,
+    wins          int2 NOT NULL DEFAULT 0,
+    losses        int2 NOT NULL DEFAULT 0,
+    created_at    timestamptz DEFAULT now()
 );
 
+-- ── Active run state ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.player (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  gold       int2 NOT NULL DEFAULT 10,
-  turn       int2 NOT NULL DEFAULT 1,
-  health     int2 NOT NULL DEFAULT 10,
-  status     text NOT NULL DEFAULT 'shopping'
-              CHECK (status IN ('shopping','searching','previewing','in_match')),
-  created_at timestamptz DEFAULT now()
+    id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    gold       int2 NOT NULL DEFAULT 10,
+    turn       int2 NOT NULL DEFAULT 1,
+    health     int2 NOT NULL DEFAULT 10,
+    status     text NOT NULL DEFAULT 'shopping'
+               CHECK (status IN ('shopping','searching','previewing','in_match')),
+    created_at timestamptz DEFAULT now()
 );
 
+-- ── Player's live card instances ─────────────────────────────
+-- speed lives here too so stat-up items can reduce it
 CREATE TABLE IF NOT EXISTS public.player_cards (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  card_id    uuid NOT NULL REFERENCES cards(id),
-  slot       int2 NOT NULL CHECK (slot BETWEEN 0 AND 4),
-  attack     int2 NOT NULL,
-  health     int2 NOT NULL,
-  speed      int2 NOT NULL DEFAULT 5,
-  level      int2 NOT NULL DEFAULT 1 CHECK (level BETWEEN 1 AND 3),
-  created_at timestamptz DEFAULT now(),
-  UNIQUE (user_id, slot)
+    id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    card_id    uuid NOT NULL REFERENCES cards(id),
+    slot       int2 NOT NULL CHECK (slot BETWEEN 0 AND 4),
+    attack     int2 NOT NULL,
+    health     int2 NOT NULL,
+    speed      int2 NOT NULL DEFAULT 5,
+    level      int2 NOT NULL DEFAULT 1 CHECK (level BETWEEN 1 AND 3),
+    created_at timestamptz DEFAULT now(),
+    UNIQUE (user_id, slot)
 );
 
+-- ── Matchmaking + active games ───────────────────────────────
 CREATE TABLE IF NOT EXISTS public.game_manager (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  player1_id  uuid NOT NULL REFERENCES users(id),
-  player2_id  uuid REFERENCES users(id),
-  turn        int2 NOT NULL,
-  phase       text NOT NULL DEFAULT 'waiting'
-              CHECK (phase IN ('waiting','previewing','shopping','battling','done')),
-  winner_id   uuid REFERENCES users(id),
-  shop_ready  int2 NOT NULL DEFAULT 0,
-  created_at  timestamptz DEFAULT now()
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    player1_id  uuid NOT NULL REFERENCES users(id),
+    player2_id  uuid REFERENCES users(id),
+    turn        int2 NOT NULL,
+    phase       text NOT NULL DEFAULT 'waiting'
+                CHECK (phase IN ('waiting','previewing','shopping','battling','done')),
+    winner_id   uuid REFERENCES users(id),
+    shop_ready  int2 NOT NULL DEFAULT 0,
+    created_at  timestamptz DEFAULT now()
 );
 
+-- ── Indexes ──────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_player_user       ON player       (user_id);
 CREATE INDEX IF NOT EXISTS idx_player_cards_user ON player_cards (user_id);
 CREATE INDEX IF NOT EXISTS idx_gm_phase_turn     ON game_manager (phase, turn);
 
+-- ── Atomic matchmaking ───────────────────────────────────────
 CREATE OR REPLACE FUNCTION find_or_create_match(p_user_id uuid, p_turn int2)
 RETURNS json LANGUAGE plpgsql AS $$
 DECLARE
@@ -85,6 +98,7 @@ BEGIN
 END;
 $$;
 
+-- ── Ready signal (atomic counter) ───────────────────────────
 CREATE OR REPLACE FUNCTION player_ready(p_match_id uuid)
 RETURNS json LANGUAGE plpgsql AS $$
 DECLARE
@@ -101,6 +115,7 @@ BEGIN
 END;
 $$;
 
+-- ── Starter cards ────────────────────────────────────────────
 INSERT INTO public.cards (name, tier, base_attack, base_health, ability, cost, speed) VALUES
   ('Spades',   1, 3, 6, 'none', 3, 5),
   ('Hearts',   1, 5, 3, 'none', 3, 4),

@@ -66,6 +66,12 @@ class PreviewScene(BaseScene):
     def update(self):
         if time.time() - self.start >= self.PREVIEW_SECONDS:
             from scenes.shop_scene import ShopScene
+            # New shop phase after preview: refresh offer and grant turn income once
+            player = self.game.db.get_player(self.game.state.user_id)
+            if player:
+                new_gold = min(player.get("gold",0) + 10, 100)
+                self.game.db.update_player(self.game.state.user_id, {"gold": new_gold})
+                self.game.state.gold = new_gold
             self.ctrl.refresh_shop()
             self.game.scene_manager.switch_scene(ShopScene(self.game))
 
