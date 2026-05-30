@@ -65,7 +65,7 @@ class MenuScene(BaseScene):
         screen.blit(pygame.transform.scale(bg, (BASE_WIDTH, BASE_HEIGHT)), (0, 0))
 
         if self.game.session:
-            name = self.body_font.render(f"{self.game.session['username']}", True, RED)
+            name = self.title_font.render(f"{self.game.session['username']}", True, RED)
             screen.blit(name, (32, 32))
 
         for btn in self.buttons:
