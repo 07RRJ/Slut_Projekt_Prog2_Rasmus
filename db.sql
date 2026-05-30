@@ -35,11 +35,11 @@ CREATE TABLE IF NOT EXISTS public.player (
     health     int2 NOT NULL DEFAULT 10,
     status     text NOT NULL DEFAULT 'shopping'
                CHECK (status IN ('shopping','searching','previewing','in_match')),
+    last_seen  timestamptz DEFAULT now(),  -- heartbeat for disconnect detection
     created_at timestamptz DEFAULT now()
 );
 
 -- ── Player's live card instances ─────────────────────────────
--- speed lives here too so stat-up items can reduce it
 CREATE TABLE IF NOT EXISTS public.player_cards (
     id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -71,6 +71,24 @@ CREATE INDEX IF NOT EXISTS idx_player_user       ON player       (user_id);
 CREATE INDEX IF NOT EXISTS idx_player_cards_user ON player_cards (user_id);
 CREATE INDEX IF NOT EXISTS idx_gm_phase_turn     ON game_manager (phase, turn);
 
+-- ── Stale-data cleanup (run on login / new-run start) ────────
+-- Removes player rows older than 2 hours for a given user_id.
+-- Cascade FK handles player_cards automatically.
+-- Also clears open game_manager rows created by that player.
+CREATE OR REPLACE FUNCTION cleanup_stale_data(p_user_id uuid)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM player
+    WHERE user_id = p_user_id
+      AND created_at < now() - interval '2 hours';
+
+  DELETE FROM game_manager
+    WHERE player1_id = p_user_id
+      AND phase IN ('waiting', 'previewing', 'shopping')
+      AND created_at < now() - interval '2 hours';
+END;
+$$;
+
 -- ── Atomic matchmaking ───────────────────────────────────────
 CREATE OR REPLACE FUNCTION find_or_create_match(p_user_id uuid, p_turn int2)
 RETURNS json LANGUAGE plpgsql AS $$
@@ -78,6 +96,9 @@ DECLARE
   existing_id uuid;
   result      json;
 BEGIN
+  -- Clean up this player's stale data first
+  PERFORM cleanup_stale_data(p_user_id);
+
   SELECT id INTO existing_id
   FROM game_manager
   WHERE phase = 'waiting' AND turn = p_turn AND player1_id != p_user_id
@@ -124,3 +145,7 @@ INSERT INTO public.cards (name, tier, base_attack, base_health, ability, cost, s
   ('Joker',    2, 4, 5, 'none', 4, 5),
   ('Ace',      2, 7, 4, 'none', 4, 2)
 ON CONFLICT DO NOTHING;
+
+-- ── Migration note ───────────────────────────────────────────
+-- If upgrading an existing DB, run these once:
+--   ALTER TABLE player ADD COLUMN IF NOT EXISTS last_seen timestamptz DEFAULT now();

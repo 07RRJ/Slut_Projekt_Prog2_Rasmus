@@ -87,6 +87,8 @@ class GameController:
 
     # ── Matchmaking ──────────────────────────────────────────
     def find_match(self) -> dict:
+        # Clean up any zombie rows from a disconnected previous session
+        self.db.cleanup_stale_data(self.state.user_id)
         match = self.db.find_or_create_match(self.state.user_id, self.state.turn)
         self.state.match = match
         return match

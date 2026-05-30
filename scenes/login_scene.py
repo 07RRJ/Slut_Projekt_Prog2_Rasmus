@@ -75,6 +75,8 @@ class LoginScene(BaseScene):
         self.game.session        = session
         self.game.state.user_id  = user["id"]
         self.game.state.username = user["username"]
+        # Clean up any stale rows from a previous session (> 2 h old)
+        self.game.db.cleanup_stale_data(user["id"])
         self.game.scene_manager.switch_scene(MenuScene(self.game))
 
     def handle_events(self, events):
@@ -142,6 +144,8 @@ class RegisterScene(BaseScene):
         self.game.session        = session
         self.game.state.user_id  = user["id"]
         self.game.state.username = user["username"]
+        # Clean up any stale rows from a previous session (> 2 h old)
+        self.game.db.cleanup_stale_data(user["id"])
         self.game.scene_manager.switch_scene(MenuScene(self.game))
 
     def handle_events(self, events):

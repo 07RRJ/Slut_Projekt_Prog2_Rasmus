@@ -55,9 +55,38 @@ class Database:
             .order(by, desc=True).limit(limit).execute()
         return res.data
 
+    # ── Stale data cleanup ───────────────────────────────────
+    def cleanup_stale_data(self, user_id: str) -> None:
+        """
+        Delete any lingering player, player_cards, and game_manager rows for
+        this user that are older than 2 hours.  Called on login/reconnect and
+        before creating a new player row so there is never a duplicate.
+        """
+        try:
+            # Remove player (cascades to player_cards via FK)
+            self.client.table("player").delete() \
+                .eq("user_id", user_id) \
+                .lt("created_at", "now() - interval '2 hours'") \
+                .execute()
+            # Remove game_manager rows where this user is player1 and still open
+            self.client.table("game_manager").delete() \
+                .eq("player1_id", user_id) \
+                .in_("phase", ["waiting", "previewing", "shopping"]) \
+                .lt("created_at", "now() - interval '2 hours'") \
+                .execute()
+        except Exception:
+            pass  # best-effort; don't crash on cleanup failure
+
+    def force_cleanup_player(self, user_id: str) -> None:
+        """
+        Hard-delete player + cards for this user regardless of age.
+        Used when the player explicitly starts a new run.
+        """
+        self.client.table("player").delete().eq("user_id", user_id).execute()
+
     # ── Player run ───────────────────────────────────────────
     def start_run(self, user_id: str) -> dict:
-        self.delete_player(user_id)
+        self.force_cleanup_player(user_id)
         return self.create_player(user_id)
 
     def create_player(self, user_id: str) -> dict:
@@ -79,10 +108,18 @@ class Database:
             return None
 
     def update_player(self, user_id: str, fields: dict) -> None:
-        # Enforce gold cap before writing
         if "gold" in fields:
             fields["gold"] = min(fields["gold"], GOLD_CAP)
         self.client.table("player").update(fields).eq("user_id", user_id).execute()
+
+    def heartbeat(self, user_id: str) -> None:
+        """Touch last_seen so the opponent can detect disconnects."""
+        try:
+            self.client.table("player") \
+                .update({"last_seen": "now()"}) \
+                .eq("user_id", user_id).execute()
+        except Exception:
+            pass
 
     def delete_player(self, user_id: str) -> None:
         self.client.table("player").delete().eq("user_id", user_id).execute()
@@ -108,7 +145,6 @@ class Database:
 
     # ── Cards ────────────────────────────────────────────────
     def buy_card(self, user_id: str, card_id: str, slot: int) -> dict:
-        # Check for mergeable copy already in team
         existing = self.client.table("player_cards") \
             .select("*").eq("user_id", user_id).eq("card_id", card_id) \
             .lt("level", 3).limit(1).execute()
@@ -138,11 +174,10 @@ class Database:
 
     def apply_stat_up(self, user_id: str, player_card_id: str,
                       d_attack: int, d_health: int, d_speed: int) -> None:
-        """Apply a stat-up item to a player card already in the team."""
         res = self.client.table("player_cards") \
             .select("attack, health, speed") \
             .eq("id", player_card_id).single().execute().data
-        new_speed = max(1, res["speed"] + d_speed)   # speed floor = 1
+        new_speed = max(1, res["speed"] + d_speed)
         self.client.table("player_cards").update({
             "attack": res["attack"] + d_attack,
             "health": res["health"] + d_health,
@@ -160,7 +195,6 @@ class Database:
             .update({"slot": new_slot}).eq("id", player_card_id).execute()
 
     def get_team(self, user_id: str) -> list:
-        # include speed from both player_cards and cards blueprint
         res = self.client.table("player_cards") \
             .select("*, cards(name, ability, cost, speed)") \
             .eq("user_id", user_id).order("slot").execute()
@@ -193,3 +227,25 @@ class Database:
             "phase":     "done",
             "winner_id": winner_id,
         }).eq("id", match_id).execute()
+
+    def p1_last_seen(self, match_id: str) -> float | None:
+        """
+        Return seconds since player1 last sent a heartbeat, or None if unknown.
+        Requires last_seen column on player table.
+        """
+        try:
+            match = self.get_match(match_id)
+            if not match:
+                return None
+            p1_id = match["player1_id"]
+            res = self.client.table("player") \
+                .select("last_seen").eq("user_id", p1_id).single().execute()
+            last_seen_str = res.data.get("last_seen")
+            if not last_seen_str:
+                return None
+            from datetime import datetime, timezone
+            last_seen = datetime.fromisoformat(last_seen_str.replace("Z", "+00:00"))
+            now = datetime.now(timezone.utc)
+            return (now - last_seen).total_seconds()
+        except Exception:
+            return None
