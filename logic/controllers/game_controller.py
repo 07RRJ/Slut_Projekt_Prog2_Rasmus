@@ -1,4 +1,8 @@
 from logic.shop_logic import ShopLogic
+from models.card_model import Card
+import copy
+
+GOLD_CAP = 100
 
 class GameController:
     def __init__(self, game):
@@ -18,6 +22,7 @@ class GameController:
         self.refresh_shop()
 
     def refresh_team(self) -> None:
+        """Load team from DB — only called at run start / after battle."""
         rows = self.db.get_team(self.state.user_id)
         self.state.load_team(rows)
 
@@ -26,68 +31,99 @@ class GameController:
         self.state.shop_cards = ShopLogic.generate_from_db(rows)
         self.state.stat_ups   = ShopLogic.generate_stat_ups(2)
 
-    # ── Shop actions ─────────────────────────────────────────
+    # ── Deck push ────────────────────────────────────────────
+    def push_deck_state(self) -> None:
+        """Flush the in-memory team to the DB. Called at: ready, auto-ready, 30s checkpoint."""
+        self.db.push_deck_state(self.state.user_id, self.state.team)
+        # Also persist current gold
+        self.db.update_player(self.state.user_id, {"gold": self.state.gold})
+
+    # ── Local-only shop actions (NO DB calls) ────────────────
     def buy_card(self, shop_card, slot: int) -> bool:
-        player = self.db.get_player(self.state.user_id)
-        cost   = getattr(shop_card, "cost", 3)
-        if not ShopLogic.can_afford(player["gold"], cost):
-            return False
-        if self.state.team[slot] is not None:
-            return False
-
-        self.db.buy_card(self.state.user_id, shop_card.card_id, slot)
-        self.db.update_player(self.state.user_id, {"gold": player["gold"] - cost})
-        self.refresh_team()
-        self.state.gold = min(player["gold"] - cost, 100)
-        return True
-
-    def apply_stat_up(self, stat_up, target_slot: int) -> bool:
-        """Apply a StatUp item to the card in target_slot."""
-        card = self.state.team[target_slot]
-        if card is None:
-            return False
-        player = self.db.get_player(self.state.user_id)
-        if not ShopLogic.can_afford(player["gold"], stat_up.cost):
+        """
+        Buy a card into a specific slot — pure in-memory, no DB.
+        Returns False if can't afford or slot is occupied by a different card.
+        Merges if same card_id at <level 3.
+        """
+        cost = getattr(shop_card, "cost", 3)
+        if not ShopLogic.can_afford(self.state.gold, cost):
             return False
 
-        self.db.apply_stat_up(
-            self.state.user_id, card.id,
-            stat_up.d_attack, stat_up.d_health, stat_up.d_speed,
+        existing = self.state.team[slot]
+        if existing is not None:
+            # Only allow if it's a merge
+            if existing.card_id == shop_card.card_id and existing.level < 3:
+                existing.level  += 1
+                existing.attack += 1
+                existing.health += 1
+                self.state.gold -= cost
+                return True
+            return False  # occupied by different card
+
+        # Place new card in the slot
+        new_card = Card(
+            id      = f"local_{slot}_{shop_card.card_id}",  # temp id until push
+            card_id = shop_card.card_id,
+            name    = shop_card.name,
+            attack  = shop_card.attack,
+            health  = shop_card.health,
+            level   = 1,
+            speed   = shop_card.speed,
+            ability = shop_card.ability,
+            slot    = slot,
         )
-        self.db.update_player(self.state.user_id, {"gold": player["gold"] - stat_up.cost})
-        self.refresh_team()
-        self.state.gold = min(player["gold"] - stat_up.cost, 100)
+        self.state.team[slot] = new_card
+        self.state.gold -= cost
         return True
 
     def sell_card(self, slot: int) -> bool:
+        """Sell card at slot — pure in-memory."""
         card = self.state.team[slot]
         if card is None:
             return False
-        self.db.sell_card(card.id, self.state.user_id)
-        self.refresh_team()
-        player = self.db.get_player(self.state.user_id)
-        self.state.gold = player["gold"]
+        self.state.team[slot] = None
+        self.state.gold = min(self.state.gold + 1, GOLD_CAP)
         return True
 
-    def move_card(self, from_slot: int, to_slot: int) -> bool:
-        card = self.state.team[from_slot]
-        if card is None or self.state.team[to_slot] is not None:
+    def apply_stat_up(self, stat_up, target_slot: int) -> bool:
+        """Apply a StatUp to a card — pure in-memory."""
+        card = self.state.team[target_slot]
+        if card is None:
             return False
-        self.db.move_card(card.id, to_slot)
-        self.refresh_team()
+        if not ShopLogic.can_afford(self.state.gold, stat_up.cost):
+            return False
+        card.attack = card.attack + stat_up.d_attack
+        card.health = card.health + stat_up.d_health
+        card.speed  = max(1, card.speed + stat_up.d_speed)
+        self.state.gold -= stat_up.cost
+        return True
+
+    def swap_cards(self, slot_a: int, slot_b: int) -> bool:
+        """Swap two team slots — pure in-memory, instant."""
+        card_a = self.state.team[slot_a]
+        card_b = self.state.team[slot_b]
+        if card_a is None and card_b is None:
+            return False
+        # Swap in memory
+        self.state.team[slot_a] = card_b
+        self.state.team[slot_b] = card_a
+        # Update slot field on each card object
+        if card_a is not None:
+            card_a.slot = slot_b
+        if card_b is not None:
+            card_b.slot = slot_a
         return True
 
     def reroll_shop(self, reroll_cost: int) -> bool:
-        if self.db.reroll_shop(self.state.user_id, reroll_cost):
-            player = self.db.get_player(self.state.user_id)
-            self.state.gold = player["gold"]
-            self.refresh_shop()
-            return True
-        return False
+        """Reroll the shop offer — deducts gold locally, refreshes shop from DB."""
+        if not ShopLogic.can_afford(self.state.gold, reroll_cost):
+            return False
+        self.state.gold -= reroll_cost
+        self.refresh_shop()
+        return True
 
     # ── Matchmaking ──────────────────────────────────────────
     def find_match(self) -> dict:
-        # Clean up any zombie rows from a disconnected previous session
         self.db.cleanup_stale_data(self.state.user_id)
         match = self.db.find_or_create_match(self.state.user_id, self.state.turn)
         self.state.match = match
@@ -101,6 +137,8 @@ class GameController:
         return match
 
     def signal_shop_ready(self) -> None:
+        """Push deck state then signal ready — the two things that must happen together."""
+        self.push_deck_state()
         if not self.state.match:
             return
         updated = self.db.client.rpc(
@@ -144,7 +182,6 @@ class GameController:
         player   = self.db.get_player(my_id)
         new_hp   = player["health"] - (0 if i_won or result["winner"] == "draw" else 1)
         new_turn = player["turn"] + 1
-        # Gold carries over; just add the turn income (10), capped at 100
         new_gold = min(player["gold"] + 10, 100)
 
         if new_hp <= 0:
@@ -159,6 +196,6 @@ class GameController:
             self.state.health = new_hp
             self.state.turn   = new_turn
             self.state.gold   = new_gold
-            self.state.match  = None   # clear so next shop → fresh matchmaking
+            self.state.match  = None
 
         return result

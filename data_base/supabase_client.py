@@ -57,32 +57,20 @@ class Database:
 
     # ── Stale data cleanup ───────────────────────────────────
     def cleanup_stale_data(self, user_id: str) -> None:
-        """
-        Delete any lingering player, player_cards, and game_manager rows for
-        this user that are older than 2 hours.  Called on login/reconnect and
-        before creating a new player row so there is never a duplicate.
-        """
         try:
-            # Remove player (cascades to player_cards via FK)
             self.client.table("player").delete() \
                 .eq("user_id", user_id) \
                 .lt("created_at", "now() - interval '2 hours'") \
                 .execute()
-            # Remove game_manager rows where this user is player1 and still open
             self.client.table("game_manager").delete() \
                 .eq("player1_id", user_id) \
                 .in_("phase", ["waiting", "previewing", "shopping"]) \
                 .lt("created_at", "now() - interval '2 hours'") \
                 .execute()
         except Exception:
-            pass  # best-effort; don't crash on cleanup failure
+            pass
 
     def force_cleanup_player(self, user_id: str) -> None:
-        """
-        Hard-delete player + cards for this user regardless of age.
-        Deletes player_cards explicitly first — don't rely on FK cascade
-        through the Supabase REST client.
-        """
         self.client.table("player_cards").delete().eq("user_id", user_id).execute()
         self.client.table("player").delete().eq("user_id", user_id).execute()
 
@@ -115,7 +103,6 @@ class Database:
         self.client.table("player").update(fields).eq("user_id", user_id).execute()
 
     def heartbeat(self, user_id: str) -> None:
-        """Touch last_seen so the opponent can detect disconnects."""
         try:
             self.client.table("player") \
                 .update({"last_seen": "now()"}) \
@@ -135,7 +122,33 @@ class Database:
                 .update({key: user[key] + 1}).eq("id", user_id).execute()
         self.delete_player(user_id)
 
-    # ── Shop ─────────────────────────────────────────────────
+    # ── Deck snapshot (replaces per-action card writes) ──────
+    def push_deck_state(self, user_id: str, team: list) -> None:
+        """
+        Atomically replace all player_cards for this user with the current
+        in-memory team. Called at ready / auto-ready / 30s checkpoint — NOT
+        on every shop action.  team is a list of 5 Card|None entries.
+        """
+        # Delete existing rows first
+        self.client.table("player_cards").delete().eq("user_id", user_id).execute()
+        # Insert current live cards
+        rows = []
+        for card in team:
+            if card is None:
+                continue
+            rows.append({
+                "user_id": user_id,
+                "card_id": card.card_id,
+                "slot":    card.slot,
+                "attack":  card.attack,
+                "health":  card.health,
+                "speed":   card.speed,
+                "level":   card.level,
+            })
+        if rows:
+            self.client.table("player_cards").insert(rows).execute()
+
+    # ── Shop offer ───────────────────────────────────────────
     def get_shop_offer(self, turn: int, count: int = 3) -> list:
         max_tier = min(1 + turn // 3, 6)
         res = self.client.table("cards") \
@@ -146,69 +159,12 @@ class Database:
     def get_card_catalogue(self) -> list:
         return self.client.table("cards").select("*").execute().data
 
-    # ── Cards ────────────────────────────────────────────────
-    def buy_card(self, user_id: str, card_id: str, slot: int) -> dict:
-        existing = self.client.table("player_cards") \
-            .select("*").eq("user_id", user_id).eq("card_id", card_id) \
-            .lt("level", 3).limit(1).execute()
-
-        if existing.data:
-            card = existing.data[0]
-            self.client.table("player_cards").update({
-                "level":  card["level"]  + 1,
-                "attack": card["attack"] + 1,
-                "health": card["health"] + 1,
-            }).eq("id", card["id"]).execute()
-            return {"merged": True, "card": card}
-
-        blueprint = self.client.table("cards") \
-            .select("*").eq("id", card_id).single().execute().data
-
-        res = self.client.table("player_cards").insert({
-            "user_id": user_id,
-            "card_id": card_id,
-            "slot":    slot,
-            "attack":  blueprint["base_attack"],
-            "health":  blueprint["base_health"],
-            "speed":   blueprint["speed"],
-            "level":   1,
-        }).execute()
-        return {"merged": False, "card": res.data[0]}
-
-    def apply_stat_up(self, user_id: str, player_card_id: str,
-                      d_attack: int, d_health: int, d_speed: int) -> None:
-        res = self.client.table("player_cards") \
-            .select("attack, health, speed") \
-            .eq("id", player_card_id).single().execute().data
-        new_speed = max(1, res["speed"] + d_speed)
-        self.client.table("player_cards").update({
-            "attack": res["attack"] + d_attack,
-            "health": res["health"] + d_health,
-            "speed":  new_speed,
-        }).eq("id", player_card_id).execute()
-
-    def sell_card(self, player_card_id: str, user_id: str) -> None:
-        self.client.table("player_cards").delete().eq("id", player_card_id).execute()
-        player = self.get_player(user_id)
-        if player:
-            self.update_player(user_id, {"gold": player["gold"] + 1})
-
-    def move_card(self, player_card_id: str, new_slot: int) -> None:
-        self.client.table("player_cards") \
-            .update({"slot": new_slot}).eq("id", player_card_id).execute()
-
+    # ── Team read (for loading enemy team in battle) ─────────
     def get_team(self, user_id: str) -> list:
         res = self.client.table("player_cards") \
             .select("*, cards(name, ability, cost, speed)") \
             .eq("user_id", user_id).order("slot").execute()
         return res.data
-
-    def reroll_shop(self, user_id: str, reroll_cost: int) -> bool:
-        player = self.get_player(user_id)
-        if not player or player["gold"] < reroll_cost:
-            return False
-        self.update_player(user_id, {"gold": player["gold"] - reroll_cost})
-        return True
 
     # ── Matchmaking ──────────────────────────────────────────
     def find_or_create_match(self, user_id: str, turn: int) -> dict:
@@ -225,6 +181,15 @@ class Database:
         except Exception:
             return None
 
+    def force_phase(self, match_id: str, phase: str) -> None:
+        """Force a match into a specific phase (P2 override for stuck states)."""
+        try:
+            self.client.table("game_manager") \
+                .update({"phase": phase}) \
+                .eq("id", match_id).execute()
+        except Exception:
+            pass
+
     def resolve_match(self, match_id: str, winner_id: str | None) -> None:
         self.client.table("game_manager").update({
             "phase":     "done",
@@ -232,10 +197,6 @@ class Database:
         }).eq("id", match_id).execute()
 
     def p1_last_seen(self, match_id: str) -> float | None:
-        """
-        Return seconds since player1 last sent a heartbeat, or None if unknown.
-        Requires last_seen column on player table.
-        """
         try:
             match = self.get_match(match_id)
             if not match:
