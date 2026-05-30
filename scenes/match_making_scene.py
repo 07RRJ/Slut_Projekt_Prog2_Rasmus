@@ -16,7 +16,7 @@ class MatchMakingScene(BaseScene):
         self.status = "Searching for opponent…"
         self.dots = 0
         self.last_poll = 0
-        self.POLL_EVERY = 5 # seconds
+        self.POLL_EVERY = 2 # seconds
 
         match = self.ctrl.find_match()
         if match["phase"] in ("previewing", "shopping", "battling"):
@@ -86,7 +86,7 @@ class PreviewScene(BaseScene):
             card = self.game.state.team[slot.index]
             slot.draw(screen, card)
 
-        remaining = max(0, self.PREVIEW_SECONDS - round(time.time() - self.start, 1))
+        remaining = max(0, self.PREVIEW_SECONDS - int(time.time() - self.start))
         timer = self.font.render(f"Shop opens in {remaining}", True, DARK_GRAY)
         screen.blit(timer, timer.get_rect(center=(MIDDLE_WIDTH, BASE_HEIGHT - 60)))
 

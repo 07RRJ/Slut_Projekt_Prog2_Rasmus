@@ -18,10 +18,11 @@ class ShopScene(BaseScene):
             self.ctrl.refresh_team()
 
         self.card_pos = [(50 + i * 150, BASE_HEIGHT-230) for i in range(5)]
+        self.shop_card_pos = [(50 + i * 150, BASE_HEIGHT-840) for i in range(5)]
 
         self.team_slots = [TeamSlot(*self.card_pos[i], i) for i in range(5)]
-        self.reroll_btn = Button((BASE_WIDTH-440, BASE_HEIGHT-230, 180, 70), "reroll", self.reroll)
-        self.ready_btn = Button((BASE_WIDTH-230, BASE_HEIGHT-230, 180, 70), "ready", self.ready)
+        self.reroll_btn = Button((WIDTH_WITH_MARGIN-500, HEIGHT_WITH_MARGIN-MARGIN-280, 180, 80), "reroll", self.reroll)
+        self.ready_btn = Button((WIDTH_WITH_MARGIN-180, HEIGHT_WITH_MARGIN-MARGIN-280, 180, 80), "ready", self.ready)
         self.stat_box = StatBox(game.state)
 
         self.selected_shop_idx = None
@@ -90,7 +91,7 @@ class ShopScene(BaseScene):
         screen.blit(body.render("stat up:", True, BLUE), (600, 100))
 
         for i, card in enumerate(self.game.state.shop_cards):
-            CardView(card, *self.card_pos[i], selected=(i == self.selected_shop_idx)).draw(screen)
+            CardView(card, *self.shop_card_pos[i], selected=(i == self.selected_shop_idx)).draw(screen)
 
         for slot in self.team_slots:
             slot.draw(screen, self.game.state.team[slot.index])
