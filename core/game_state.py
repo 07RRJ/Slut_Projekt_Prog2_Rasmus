@@ -1,54 +1,59 @@
 class GameState:
     def __init__(self):
-        self.user_id: str = ""
-        self.username: str = "codex"
-        self.health: int = 10
-        self.gold: int = 10
-        self.turn: int = 1
+        self.user_id:   str  = ""
+        self.username:  str  = "codex"
+        self.health:    int  = 10
+        self.gold:      int  = 10
+        self.turn:      int  = 1
 
-        self.team: list = [None] * 5
-        self.enemy_team: list = [None] * 5
-        self.shop_cards: list = []
-        self.match: dict | None = None
+        self.team:       list      = [None] * 5
+        self.enemy_team: list      = [None] * 5
+        self.shop_cards: list      = []   # Card instances (new cards section)
+        self.stat_ups:   list      = []   # StatUp offer instances
+        self.match:      dict | None = None
 
-        self.selected_card = None
+        self.selected_card = None         # shop Card currently selected
 
     def load_from_db(self, player_row: dict, session: dict) -> None:
-        self.user_id = session["user_id"]
+        self.user_id  = session["user_id"]
         self.username = session["username"]
         if player_row:
             self.health = player_row["health"]
-            self.gold = player_row["gold"]
-            self.turn = player_row["turn"]
+            self.gold   = player_row["gold"]
+            self.turn   = player_row["turn"]
 
     def load_team(self, player_cards: list) -> None:
         from models.card_model import Card
         self.team = [None] * 5
         for row in player_cards:
-            card = Card(
-                id = row["id"],
+            card_info = row["cards"]
+            c = Card(
+                id      = row["id"],
                 card_id = row["card_id"],
-                name = row["cards"]["name"],
-                attack = row["attack"],
-                health = row["health"],
-                level = row["level"],
-                ability = row["cards"].get("ability", ""),
-                slot = row["slot"],
+                name    = card_info["name"],
+                attack  = row["attack"],
+                health  = row["health"],
+                level   = row["level"],
+                speed   = row["speed"],
+                ability = card_info.get("ability", ""),
+                slot    = row["slot"],
             )
-            self.team[row["slot"]] = card
+            self.team[row["slot"]] = c
 
     def load_enemy_team(self, player_cards: list) -> None:
         from models.card_model import Card
         self.enemy_team = [None] * 5
         for row in player_cards:
-            card = Card(
-                id = row["id"],
+            card_info = row["cards"]
+            c = Card(
+                id      = row["id"],
                 card_id = row["card_id"],
-                name = row["cards"]["name"],
-                attack = row["attack"],
-                health = row["health"],
-                level = row["level"],
-                ability = row["cards"].get("ability", ""),
-                slot = row["slot"],
+                name    = card_info["name"],
+                attack  = row["attack"],
+                health  = row["health"],
+                level   = row["level"],
+                speed   = row["speed"],
+                ability = card_info.get("ability", ""),
+                slot    = row["slot"],
             )
-            self.enemy_team[row["slot"]] = card
+            self.enemy_team[row["slot"]] = c

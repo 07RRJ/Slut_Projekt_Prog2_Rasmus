@@ -1,7 +1,7 @@
 import pygame
 from scenes.base_scene import BaseScene
-from ui.button import Button
-from core.constants import *
+from ui.button         import Button
+from core.constants    import *
 
 class MenuScene(BaseScene):
     def __init__(self, game):
@@ -10,27 +10,28 @@ class MenuScene(BaseScene):
         button_rect = [
             (MIDDLE_WIDTH - 150, BASE_HEIGHT - 102, 300, 70),
             (MIDDLE_WIDTH + 200, BASE_HEIGHT - 102, 300, 70),
-            (MIDDLE_WIDTH + 550, BASE_HEIGHT - 102, 300, 70)
+            (MIDDLE_WIDTH + 550, BASE_HEIGHT - 102, 300, 70),
         ]
 
         if game.session:
             self.mode = "main"
             self.buttons = [
-                Button(button_rect[0], "PLAY", self.play),
-                Button(button_rect[1], "LOG OUT", self.log_out),
-                Button(button_rect[2], "QUIT", self.quit),
+                Button(button_rect[0], "PLAY",     self.play),
+                Button(button_rect[1], "LOG OUT",  self.log_out),
+                Button(button_rect[2], "QUIT",     self.quit),
             ]
         else:
             self.mode = "auth"
             self.buttons = [
-                Button(button_rect[0], "LOGIN", self.go_to_login),
+                Button(button_rect[0], "LOGIN",    self.go_to_login),
                 Button(button_rect[1], "REGISTER", self.go_to_register),
-                Button(button_rect[2], "QUIT", self.quit),
+                Button(button_rect[2], "QUIT",     self.quit),
             ]
 
         self.title_font = game.assets.get_font("title")
-        self.body_font = game.assets.get_font("body")
+        self.body_font  = game.assets.get_font("body")
 
+    # ── Play → Shop first, then matchmaking ──────────────────
     def play(self):
         from logic.controllers.game_controller import GameController
         ctrl = GameController(self.game)
@@ -65,7 +66,9 @@ class MenuScene(BaseScene):
         screen.blit(pygame.transform.scale(bg, (BASE_WIDTH, BASE_HEIGHT)), (0, 0))
 
         if self.game.session:
-            name = self.title_font.render(f"{self.game.session['username']}", True, RED)
+            name = self.title_font.render(
+                f"{self.game.session['username']}", True, RED
+            )
             screen.blit(name, (32, 32))
 
         for btn in self.buttons:

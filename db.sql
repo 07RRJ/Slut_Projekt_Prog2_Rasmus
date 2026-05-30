@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.cards (
   base_health int2 NOT NULL,
   ability     text,
   cost        int2 NOT NULL DEFAULT 3,
+  speed       int2 NOT NULL DEFAULT 5,   -- lower = faster
   created_at  timestamptz DEFAULT now()
 );
 
@@ -25,7 +26,7 @@ CREATE TABLE IF NOT EXISTS public.player (
   turn       int2 NOT NULL DEFAULT 1,
   health     int2 NOT NULL DEFAULT 10,
   status     text NOT NULL DEFAULT 'shopping'
-  CHECK (status IN ('shopping','searching','previewing','in_match')),
+              CHECK (status IN ('shopping','searching','previewing','in_match')),
   created_at timestamptz DEFAULT now()
 );
 
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.player_cards (
   slot       int2 NOT NULL CHECK (slot BETWEEN 0 AND 4),
   attack     int2 NOT NULL,
   health     int2 NOT NULL,
+  speed      int2 NOT NULL DEFAULT 5,
   level      int2 NOT NULL DEFAULT 1 CHECK (level BETWEEN 1 AND 3),
   created_at timestamptz DEFAULT now(),
   UNIQUE (user_id, slot)
@@ -53,27 +55,24 @@ CREATE TABLE IF NOT EXISTS public.game_manager (
   created_at  timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_player_user        ON player       (user_id);
-CREATE INDEX IF NOT EXISTS idx_player_cards_user  ON player_cards (user_id);
-CREATE INDEX IF NOT EXISTS idx_gm_phase_turn      ON game_manager (phase, turn);
+CREATE INDEX IF NOT EXISTS idx_player_user       ON player       (user_id);
+CREATE INDEX IF NOT EXISTS idx_player_cards_user ON player_cards (user_id);
+CREATE INDEX IF NOT EXISTS idx_gm_phase_turn     ON game_manager (phase, turn);
 
 CREATE OR REPLACE FUNCTION find_or_create_match(p_user_id uuid, p_turn int2)
 RETURNS json LANGUAGE plpgsql AS $$
 DECLARE
   existing_id uuid;
-  result json;
+  result      json;
 BEGIN
   SELECT id INTO existing_id
   FROM game_manager
-  WHERE phase = 'waiting'
-    AND turn  = p_turn
-    AND player1_id != p_user_id
+  WHERE phase = 'waiting' AND turn = p_turn AND player1_id != p_user_id
   LIMIT 1 FOR UPDATE SKIP LOCKED;
 
   IF existing_id IS NOT NULL THEN
     UPDATE game_manager
-    SET player2_id = p_user_id,
-        phase      = 'previewing'
+    SET player2_id = p_user_id, phase = 'previewing'
     WHERE id = existing_id;
     SELECT row_to_json(g) INTO result FROM game_manager g WHERE id = existing_id;
   ELSE
@@ -86,11 +85,27 @@ BEGIN
 END;
 $$;
 
-INSERT INTO public.cards (name, tier, base_attack, base_health, ability, cost) VALUES
-  ('Spades',   1, 3, 6, 'none',      3),
-  ('Hearts',   1, 5, 3, 'none',      3),
-  ('Diamonds', 1, 2, 8, 'shield',    3),
-  ('Clubs',    1, 6, 2, 'none',      3),
-  ('Joker',    2, 4, 5, 'buff_next', 4),
-  ('Ace',      2, 7, 4, 'none',      4)
+CREATE OR REPLACE FUNCTION player_ready(p_match_id uuid)
+RETURNS json LANGUAGE plpgsql AS $$
+DECLARE
+  result json;
+BEGIN
+  UPDATE game_manager
+  SET
+    shop_ready = shop_ready + 1,
+    phase = CASE WHEN shop_ready + 1 >= 2 THEN 'battling' ELSE phase END
+  WHERE id = p_match_id;
+
+  SELECT row_to_json(g) INTO result FROM game_manager g WHERE id = p_match_id;
+  RETURN result;
+END;
+$$;
+
+INSERT INTO public.cards (name, tier, base_attack, base_health, ability, cost, speed) VALUES
+  ('Spades',   1, 3, 6, 'none', 3, 5),
+  ('Hearts',   1, 5, 3, 'none', 3, 4),
+  ('Diamonds', 1, 2, 8, 'none', 3, 6),
+  ('Clubs',    1, 6, 2, 'none', 3, 3),
+  ('Joker',    2, 4, 5, 'none', 4, 5),
+  ('Ace',      2, 7, 4, 'none', 4, 2)
 ON CONFLICT DO NOTHING;
