@@ -214,18 +214,38 @@ class BattleScene(BaseScene):
             txt = self.font.render(self.cur_event.text, True, DARK_GRAY)
             screen.blit(txt, txt.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT + 60)))
 
-        # ── Result banner ─────────────────────────────────────
+        # ── Result banner / end screen ────────────────────────
         if self.done:
             goal_reached = self.result.get("goal_reached", False)
             run_ended    = self.result.get("run_ended", False)
 
-            if goal_reached:
-                banner, color = "GOAL REACHED!", GOLD
-                hint = "You made it to Turn 10!"
-            elif run_ended:
-                banner, color = "RUN ENDED", RED
-                hint = "Health reached 0"
+            if goal_reached or run_ended:
+                # Full-screen win / death overlay — drawn over everything
+                overlay = pygame.Surface((BASE_WIDTH, BASE_HEIGHT), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 200))
+                screen.blit(overlay, (0, 0))
+
+                if goal_reached:
+                    banner      = "YOU WIN!"
+                    sub         = "5 battles won — run complete!"
+                    color       = GOLD
+                    sub_color   = GOLD
+                else:
+                    banner      = "GAME OVER"
+                    sub         = "Your health reached 0"
+                    color       = RED
+                    sub_color   = RED
+
+                banner_surf = self.title.render(banner, True, color)
+                screen.blit(banner_surf, banner_surf.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT - 60)))
+
+                sub_surf = self.font.render(sub, True, sub_color)
+                screen.blit(sub_surf, sub_surf.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))
+
+                hint_surf = self.font.render("Click anywhere to return to menu", True, GRAY)
+                screen.blit(hint_surf, hint_surf.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT + 80)))
             else:
+                # Mid-run battle result — small banner at top
                 w = self.result["winner"]
                 if w == "a":
                     banner, color, hint = "YOU WIN!", GOLD, "Click to continue"
@@ -234,9 +254,9 @@ class BattleScene(BaseScene):
                 else:
                     banner, color, hint = "DRAW", GRAY, "Click to continue"
 
-            surf = self.title.render(banner, True, color)
-            screen.blit(surf, surf.get_rect(center=(MIDDLE_WIDTH, 50)))
-            hint_text = self.font.render(hint, True, GRAY)
-            screen.blit(hint_text, hint_text.get_rect(center=(MIDDLE_WIDTH, BASE_HEIGHT - 50)))
+                surf = self.title.render(banner, True, color)
+                screen.blit(surf, surf.get_rect(center=(MIDDLE_WIDTH, 50)))
+                hint_text = self.font.render(hint, True, GRAY)
+                screen.blit(hint_text, hint_text.get_rect(center=(MIDDLE_WIDTH, BASE_HEIGHT - 50)))
 
         self.stat_box.draw(screen)
