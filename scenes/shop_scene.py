@@ -41,7 +41,13 @@ class ShopScene(BaseScene):
         self.shop_start = time.time()
         self.auto_ready_fired = False
         self.checkpoint_saved = False # true after it saves in shop at 30 seconds
-        self.last_heartbeat = time.time()
+        # self.elapsed
+
+    def seconds_left(self) -> int:
+        return max(0, int(SHOP_TIME_LIMIT - (time.time() - self.shop_start)))
+
+    def elapsed(self) -> float:
+        return time.time() - self.shop_start
 
     def reroll(self): # reroll
         if self.ctrl.reroll_shop(self.reroll_cost):
@@ -107,11 +113,10 @@ class ShopScene(BaseScene):
             self.message = f"Applied {stat_up.label}"
         else:
             self.message = "Cant apply, no card there or not enough gold"
-        self._clear_selection()
+        self.clear_selection()
 
     def update(self):
-        self._maybe_heartbeat()
-        elapsed = self._elapsed()
+        elapsed = self.elapsed()
 
         if not self.checkpoint_saved and elapsed >= CHECKPOINT_TIME:
             self.checkpoint_saved = True
@@ -120,7 +125,7 @@ class ShopScene(BaseScene):
             except Exception as e: # just incase it fails... so it doesnt crash
                 pass
 
-        if not self.auto_ready_fired and self._seconds_left() == 0: # ready up automaticly after full shop time
+        if not self.auto_ready_fired and self.seconds_left() == 0: # ready up automaticly after full shop time
             self.auto_ready_fired = True
             self.message = "Time is up, battle time(="
             self.ready()
@@ -219,7 +224,7 @@ class ShopScene(BaseScene):
         self.ready_btn.draw(screen)
         self.stat_box.draw(screen)
 
-        seconds = self._seconds_left()
+        seconds = self.seconds_left()
         timer_color = RED if seconds <= 10 else DARK_GRAY
         timer_surf = body.render(f"Shop closes in: {seconds}s", True, timer_color)
         screen.blit(timer_surf, timer_surf.get_rect(topright=(BASE_WIDTH - MARGIN, MARGIN)))
