@@ -57,14 +57,14 @@ class BattleScene(BaseScene):
         self.event_idx += 1
         self.cur_event = event
 
-        if event.find == "result":
+        if event.kind == "result":
             self.phase = "done"
             self.done = True
             self.highlight_a_slot = -1
             self.highlight_b_slot = -1
             return
 
-        if event.find == "death":
+        if event.kind == "death":
             if event.defender_side == "a":
                 self.a_dead.add(event.defender_slot)
             else:
@@ -75,7 +75,7 @@ class BattleScene(BaseScene):
             self.phase_start = time.time()
             return
 
-        if event.find == "strike":
+        if event.kind == "strike":
             if event.attacker_side == "a":
                 self.highlight_a_slot = event.attacker_slot
                 self.highlight_b_slot = -1
@@ -123,14 +123,12 @@ class BattleScene(BaseScene):
 
         if self.phase == "attack_out":
             if elapsed >= SLIDE_TIME:
-                self.finish_strike()
-                self.phase = "attack_back"
+                self.phase = "attack_back"       # card goes back first
                 self.phase_start = time.time()
 
         elif self.phase == "attack_back":
             if elapsed >= SLIDE_TIME:
-                self.phase = "pause"
-                self.phase_start = time.time()
+                self.finish_strike()             # THEN apply hp + go to pause
 
         elif self.phase == "pause":
             if elapsed >= PAUSE_AFTER:
@@ -200,7 +198,7 @@ class BattleScene(BaseScene):
         screen.blit(vs, vs.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))
 
         if self.cur_event and not self.done:
-            txt = self.font.render(self.cur_event, True, DARK_GRAY)
+            txt = self.font.render(self.cur_event.text, True, DARK_GRAY)
             screen.blit(txt, txt.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT + 60)))
 
         if self.done:
