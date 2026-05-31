@@ -104,8 +104,8 @@ class PreviewScene(BaseScene):
                     }).eq("id", match["id"]).execute()
                 except Exception:
                     pass
-            # Clear match — shop.ready() must always go to matchmaking.
-            self.game.state.match = None
+            # Keep state.match alive — shop needs it to call signal_shop_ready()
+            # so both players sync before pvp starts.
             self.ctrl.refresh_shop()
             self.game.scene_manager.switch_scene(ShopScene(self.game))
 
