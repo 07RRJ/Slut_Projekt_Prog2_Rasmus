@@ -6,6 +6,7 @@ from ui.team_slot import TeamSlot
 from ui.stat_box import StatBox
 from core.constants import *
 from ui.pos_helpers import *
+from logic.battle_event import BattleEvent
 
 class BattleScene(BaseScene):
     def __init__(self, game):
@@ -123,12 +124,12 @@ class BattleScene(BaseScene):
 
         if self.phase == "attack_out":
             if elapsed >= SLIDE_TIME:
-                self.phase = "attack_back"       # card goes back first
+                self.phase = "attack_back"
                 self.phase_start = time.time()
 
         elif self.phase == "attack_back":
             if elapsed >= SLIDE_TIME:
-                self.finish_strike()             # THEN apply hp + go to pause
+                self.finish_strike()
 
         elif self.phase == "pause":
             if elapsed >= PAUSE_AFTER:
