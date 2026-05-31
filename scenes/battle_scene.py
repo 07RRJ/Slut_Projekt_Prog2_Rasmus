@@ -6,7 +6,6 @@ from ui.team_slot import TeamSlot
 from ui.stat_box import StatBox
 from core.constants import *
 from ui.pos_helpers import *
-from logic.battle_event import BattleEvent
 
 class BattleScene(BaseScene):
     def __init__(self, game):
@@ -44,7 +43,8 @@ class BattleScene(BaseScene):
         self.highlight_b_slot = -1
 
         self.done = False
-        self.advance()
+        self.phase = "initial_pause"
+        self.phase_start = time.time()
 
     def advance(self): # drawing logic
         if self.event_idx >= len(self.log):
@@ -89,8 +89,11 @@ class BattleScene(BaseScene):
 
             self.anim_start = slot_center(event.attacker_side, event.attacker_slot)
             self.anim_target = slot_center(event.defender_side, event.defender_slot)
-
+            overshoot_x = self.anim_target[0] + (self.anim_target[0] - self.anim_start[0]) * 0.3
+            overshoot_y = self.anim_target[1] + (self.anim_target[1] - self.anim_start[1]) * 0.3
+            self.anim_over = (overshoot_x, overshoot_y)
             self.phase = "attack_out"
+
             self.phase_start = time.time()
 
     def finish_strike(self): # change card stats, right now just hp after being attacked
@@ -110,17 +113,23 @@ class BattleScene(BaseScene):
         elapsed = time.time() - self.phase_start
         t = min(elapsed / SLIDE_TIME, 1.0)
 
-        if self.phase == "attack_back":
-            t = 1.0 - t
-
-        x = self.anim_start[0] + (self.anim_target[0] - self.anim_start[0]) * t
-        y = self.anim_start[1] + (self.anim_target[1] - self.anim_start[1]) * t
-
+        if self.phase == "attack_out":
+            x = self.anim_start[0] + (self.anim_over[0] - self.anim_start[0]) * t
+            y = self.anim_start[1] + (self.anim_over[1] - self.anim_start[1]) * t
+        else:
+            x = self.anim_over[0] + (self.anim_start[0] - self.anim_over[0]) * t
+            y = self.anim_over[1] + (self.anim_start[1] - self.anim_over[1]) * t
         return (x, y)
 
     def update(self):
         now = time.time()
         elapsed = now - self.phase_start
+
+        if self.phase == "initial_pause":
+            if elapsed >= TIME_BEFORE_FIGHT:
+                self.phase = "pause"
+                self.phase_start = time.time()
+            return 
 
         if self.phase == "attack_out":
             if elapsed >= SLIDE_TIME:

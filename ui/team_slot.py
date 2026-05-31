@@ -24,6 +24,9 @@ class TeamSlot:
         border_width = 8 if highlight else 3
         pygame.draw.rect(screen, border_color, self.rect, border_width, border_radius=20)
 
+        inner = self.rect.inflate(-border_width * 2, -border_width * 2)
+        pygame.draw.rect(screen, LIGHT_GRAY, inner, border_radius=16)
+
         name = self.font.render(card.name[:8], True, BLACK)
         atk = self.font.render(str(card.attack), True, BLACK)
         hp = self.font.render(str(max(card.health, 0)), True, RED)
