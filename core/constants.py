@@ -24,7 +24,7 @@ BLUE = (100, 170, 255)
 P1_GONE_THRESHOLD = 120 # seconds before P1 considered disconnected
 P2_GRACE_SECONDS = 30 # P2 countdown before default win
 BATTLE_COUNTDOWN = 5 # seconds buffer after both ready before battle loads
-TIME_BEFORE_FIGHT = 3 # buffer after the initial buffer where both load and are able to see the field  
+TIME_BEFORE_FIGHT = 1 # buffer after the initial buffer where both load and are able to see the field  
 POLL_EVERY = 2 # seconds
 
 # cards
