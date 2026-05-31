@@ -183,20 +183,22 @@ class BattleScene(BaseScene):
             x, y = self.get_attack_position()
 
             if self.anim_card_side == "a":
+                slot = self.my_slots[self.anim_card_slot]
                 card = self.a_cards[self.anim_card_slot]
             else:
+                slot = self.opp_slots[self.anim_card_slot]
                 card = self.b_cards[self.anim_card_slot]
 
             if card:
-                rect = pygame.Rect(x - CARD_W // 2, y - CARD_H // 2, CARD_W, CARD_H)
-                pygame.draw.rect(screen, WHITE, rect, border_radius=12)
-                pygame.draw.rect(screen, BLACK, rect, 3, border_radius=12)
-                text = self.font.render(card.name, True, BLACK)
+                # Temporarily move the slot to the animation position, draw, then restore
+                original_x, original_y = slot.x, slot.y
+                slot.x = x - CARD_W // 2
+                slot.y = y - CARD_H // 2
+                slot.draw(screen, card)
+                slot.x, slot.y = original_x, original_y
 
-                screen.blit(text, text.get_rect(center=rect.center))
-
-        vs = self.title.render("VS", True, GOLD)
-        screen.blit(vs, vs.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))
+                vs = self.title.render("VS", True, GOLD)
+                screen.blit(vs, vs.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))
 
         if self.cur_event and not self.done:
             txt = self.font.render(self.cur_event.text, True, DARK_GRAY)
