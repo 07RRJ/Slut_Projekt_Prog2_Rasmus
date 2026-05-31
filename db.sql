@@ -30,9 +30,10 @@ CREATE TABLE IF NOT EXISTS public.player (
     gold       int2 NOT NULL DEFAULT 10,
     turn       int2 NOT NULL DEFAULT 1,
     health     int2 NOT NULL DEFAULT 10,
-    status     text NOT NULL DEFAULT 'shopping'
-               CHECK (status IN ('shopping','searching','previewing','in_match')),
-    last_seen  timestamptz DEFAULT now(),
+    status       text NOT NULL DEFAULT 'shopping'
+                 CHECK (status IN ('shopping','searching','previewing','in_match')),
+    battle_wins  int2 NOT NULL DEFAULT 0,
+    last_seen    timestamptz DEFAULT now(),
     created_at timestamptz DEFAULT now()
 );
 

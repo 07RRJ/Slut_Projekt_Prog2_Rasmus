@@ -9,7 +9,7 @@ Uses BattleEngine's structured event log to drive per-step animation:
   5. When all events done: show result banner, wait for click
 
 After clicking:
-  - If goal_reached (turn 10): go to menu (run won!)
+  - If goal_reached (5 battle wins): go to menu (run won!)
   - If run_ended (health 0): go to menu (run lost)
   - Otherwise: go to shop (next turn)
 """

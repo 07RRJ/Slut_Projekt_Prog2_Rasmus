@@ -3,7 +3,7 @@ from models.card_model import Card
 import copy
 
 GOLD_CAP = 100
-GOAL_TURN = 5  # Win requirement: reach turn 10
+WIN_GOAL = 5  # Win requirement: win 5 battles
 
 class GameController:
     def __init__(self, game):
@@ -200,13 +200,13 @@ END; $$;
         if match["player1_id"] == my_id:
             self.db.resolve_match(match["id"], winner_id)
 
-        player   = self.db.get_player(my_id)
-        new_hp   = player["health"] - (0 if i_won or result["winner"] == "draw" else 1)
-        new_turn = player["turn"] + 1
+        player        = self.db.get_player(my_id)
+        new_hp        = player["health"] - (0 if i_won or result["winner"] == "draw" else 1)
+        new_turn      = player["turn"] + 1
+        new_wins      = player.get("battle_wins", 0) + (1 if i_won else 0)
 
-        # Check if we reached the goal
-        if new_turn > GOAL_TURN:
-            # Goal reached! End the run successfully
+        # Check win goal
+        if new_wins >= WIN_GOAL:
             self.db.end_run(my_id, won=True)
             result["goal_reached"] = True
             return result
@@ -217,15 +217,17 @@ END; $$;
             result["run_ended"] = True
             return result
 
-        # Run continues. Update health and turn only.
+        # Run continues. Update health, turn, and battle_wins.
         # Gold is granted by PreviewScene when the next preview timer expires.
         # Battle scene will clear state.match after this returns.
         self.db.update_player(my_id, {
-            "health": new_hp,
-            "turn":   new_turn,
+            "health":      new_hp,
+            "turn":        new_turn,
+            "battle_wins": new_wins,
         })
-        self.state.health = new_hp
-        self.state.turn   = new_turn
-        self.state.match  = None
+        self.state.health      = new_hp
+        self.state.turn        = new_turn
+        self.state.battle_wins = new_wins
+        self.state.match       = None
 
         return result

@@ -4,7 +4,8 @@ class GameState:
         self.username:  str  = "codex"
         self.health:    int  = 10
         self.gold:      int  = 10
-        self.turn:      int  = 1
+        self.turn:        int  = 1
+        self.battle_wins: int  = 0
 
         self.team:       list      = [None] * 5
         self.enemy_team: list      = [None] * 5
@@ -18,9 +19,10 @@ class GameState:
         self.user_id  = session["user_id"]
         self.username = session["username"]
         if player_row:
-            self.health = player_row["health"]
-            self.gold   = player_row["gold"]
-            self.turn   = player_row["turn"]
+            self.health       = player_row["health"]
+            self.gold         = player_row["gold"]
+            self.turn         = player_row["turn"]
+            self.battle_wins  = player_row.get("battle_wins", 0)
 
     def load_team(self, player_cards: list) -> None:
         from models.card_model import Card
