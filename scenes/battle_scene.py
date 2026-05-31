@@ -109,7 +109,7 @@ class BattleScene(BaseScene):
         self.phase = "pause"
         self.phase_start = time.time()
 
-    def get_attack_position(self):
+    def get_attack_position(self): # give attacking cards tier location to aim thowrds 
         elapsed = time.time() - self.phase_start
         t = min(elapsed / SLIDE_TIME, 1.0)
 

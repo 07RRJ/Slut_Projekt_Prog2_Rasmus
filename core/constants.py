@@ -38,6 +38,6 @@ GOLD_CAP = 100
 SHOP_TIME_LIMIT, CHECKPOINT_TIME = 60, 30 # seconds
 
 # battle logic
-SLIDE_TIME = 0.3 # seconds
-PAUSE_AFTER = 0.1 # seconds
+SLIDE_TIME = 0.2 # seconds
+PAUSE_AFTER = 0.3 # seconds
 WIN_GOAL = 5
