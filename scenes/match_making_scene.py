@@ -85,9 +85,16 @@ class PreviewScene(BaseScene):
     def update(self):
         if self._elapsed() >= self.PREVIEW_SECONDS:
             from scenes.shop_scene import ShopScene
-            # Gold was already granted by run_battle() — do NOT grant it again here.
-            # Reset the match's shop_ready counter so next round works cleanly.
-            # Only player1 does this write to avoid a race between both clients.
+            # Grant gold for this shopping round. This is the correct place:
+            # preview->shop starts a new round. Both clients compute the same
+            # value from the DB so the last-writer-wins race is harmless.
+            player = self.game.db.get_player(self.game.state.user_id)
+            if player:
+                new_gold = min(player.get("gold", 0) + 10, 100)
+                self.game.db.update_player(self.game.state.user_id, {"gold": new_gold})
+                self.game.state.gold = new_gold
+            # Reset shop_ready so both players can signal ready again this round.
+            # Player1 owns this write to avoid a write race.
             match = self.game.state.match
             if match and match.get("player1_id") == self.game.state.user_id:
                 try:
@@ -97,7 +104,8 @@ class PreviewScene(BaseScene):
                     }).eq("id", match["id"]).execute()
                 except Exception:
                     pass
-            self.game.state.match = None
+            # Keep state.match alive — shop.ready() needs it to call
+            # signal_shop_ready() -> WaitingReadyScene -> battle.
             self.ctrl.refresh_shop()
             self.game.scene_manager.switch_scene(ShopScene(self.game))
 
