@@ -63,15 +63,3 @@ class StatUpVeiw:
         cost = self.font.render(f"{self.stat_up.cost}g", True, GOLD)
         screen.blit(label, label.get_rect(center=(self.rect.centerx, self.rect.centery - 16)))
         screen.blit(cost, cost.get_rect( center=(self.rect.centerx, self.rect.centery + 20)))
-
-def my_slot_x(slot_index: int) -> int:
-    return MARGIN + slot_index * (CARD_W + CARD_GAP)
-
-def my_slot_y() -> int:
-    return BASE_HEIGHT - CARD_H - MARGIN
-
-def opp_slot_x(slot_index: int) -> int:
-    return BASE_WIDTH - MARGIN - CARD_W - slot_index * (CARD_W + CARD_GAP)
-
-def opp_slot_y() -> int:
-    return MARGIN

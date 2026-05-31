@@ -5,20 +5,7 @@ from logic.battle_engine import BattleEngine
 from ui.team_slot import TeamSlot
 from ui.stat_box import StatBox
 from core.constants import *
-from ui.cards import my_slot_x, my_slot_y, opp_slot_x, opp_slot_y
-
-def my_slot_rect(slot_index: int) -> pygame.Rect:
-    return pygame.Rect(my_slot_x(slot_index), my_slot_y(), CARD_W, CARD_H)
-
-def opp_slot_rect(slot_index: int) -> pygame.Rect:
-    return pygame.Rect(opp_slot_x(slot_index), opp_slot_y(), CARD_W, CARD_H)
-
-def slot_rect(side: str, slot: int) -> pygame.Rect:
-    return my_slot_rect(slot) if side == "a" else opp_slot_rect(slot)
-
-def slot_center(side: str, slot: int):
-    rect = slot_rect(side, slot)
-    return (rect.centerx, rect.centery)
+from ui.pos_helpers import *
 
 class BattleScene(BaseScene):
     def __init__(self, game):
@@ -70,14 +57,14 @@ class BattleScene(BaseScene):
         self.event_idx += 1
         self.cur_event = event
 
-        if event.kind == "result":
+        if event.find == "result":
             self.phase = "done"
             self.done = True
             self.highlight_a_slot = -1
             self.highlight_b_slot = -1
             return
 
-        if event.kind == "death":
+        if event.find == "death":
             if event.defender_side == "a":
                 self.a_dead.add(event.defender_slot)
             else:
@@ -88,7 +75,7 @@ class BattleScene(BaseScene):
             self.phase_start = time.time()
             return
 
-        if event.kind == "strike":
+        if event.find == "strike":
             if event.attacker_side == "a":
                 self.highlight_a_slot = event.attacker_slot
                 self.highlight_b_slot = -1
@@ -213,7 +200,7 @@ class BattleScene(BaseScene):
         screen.blit(vs, vs.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))
 
         if self.cur_event and not self.done:
-            txt = self.font.render(self.cur_event.text, True, DARK_GRAY)
+            txt = self.font.render(self.cur_event, True, DARK_GRAY)
             screen.blit(txt, txt.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT + 60)))
 
         if self.done:
