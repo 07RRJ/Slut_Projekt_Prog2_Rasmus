@@ -57,21 +57,47 @@ class PreviewScene(BaseScene):
         self.ctrl = GameController(game)
         self.font = game.assets.get_font("body")
         self.title = game.assets.get_font("title")
-        self.start = time.time()
         self.stat_box = StatBox(game.state)
 
         self.my_slots  = [TeamSlot(my_slot_x(i),  my_slot_y(),  i) for i in range(5)]
         self.opp_slots = [TeamSlot(opp_slot_x(i), opp_slot_y(), i) for i in range(5)]
 
+        # Use server-side match timestamp as shared clock so both clients
+        # count down from the same origin — this prevents timer desync where
+        # P2 (who joins slightly later) gets less preview time than P1.
+        self._server_start: float = time.time()  # fallback: local clock
+        match = game.state.match
+        if match:
+            # preview_started_at is set by the DB when P2 joins; prefer it
+            # over created_at (which is P1's match creation time).
+            ts = match.get("preview_started_at") or match.get("created_at")
+            if ts:
+                try:
+                    from datetime import datetime, timezone
+                    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    self._server_start = dt.timestamp()
+                except Exception:
+                    pass
+
+    def _elapsed(self) -> float:
+        return time.time() - self._server_start
+
     def update(self):
-        if time.time() - self.start >= self.PREVIEW_SECONDS:
+        if self._elapsed() >= self.PREVIEW_SECONDS:
             from scenes.shop_scene import ShopScene
-            # New shop phase after preview: refresh offer and grant turn income once
-            player = self.game.db.get_player(self.game.state.user_id)
-            if player:
-                new_gold = min(player.get("gold",0) + 10, 100)
-                self.game.db.update_player(self.game.state.user_id, {"gold": new_gold})
-                self.game.state.gold = new_gold
+            # Gold was already granted by run_battle() — do NOT grant it again here.
+            # Reset the match's shop_ready counter so next round works cleanly.
+            # Only player1 does this write to avoid a race between both clients.
+            match = self.game.state.match
+            if match and match.get("player1_id") == self.game.state.user_id:
+                try:
+                    self.game.db.client.table("game_manager").update({
+                        "shop_ready": 0,
+                        "phase": "shopping",
+                    }).eq("id", match["id"]).execute()
+                except Exception:
+                    pass
+            self.game.state.match = None
             self.ctrl.refresh_shop()
             self.game.scene_manager.switch_scene(ShopScene(self.game))
 
@@ -92,7 +118,7 @@ class PreviewScene(BaseScene):
             card = self.game.state.team[slot.index]
             slot.draw(screen, card)
 
-        remaining = max(0, self.PREVIEW_SECONDS - int(time.time() - self.start))
+        remaining = max(0, self.PREVIEW_SECONDS - int(self._elapsed()))
         timer = self.font.render(f"Shop opens in {remaining}", True, DARK_GRAY)
         screen.blit(timer, timer.get_rect(center=(MIDDLE_WIDTH, BASE_HEIGHT - 60)))
 

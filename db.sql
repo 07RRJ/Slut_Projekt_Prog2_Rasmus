@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS public.game_manager (
                     CHECK (phase IN ('waiting','previewing','shopping','battling','done')),
     shop_ready      int2 NOT NULL DEFAULT 0,
     preview_ready   int2 NOT NULL DEFAULT 0,
+    preview_started_at timestamptz,
     winner_id       uuid REFERENCES users(id),
     created_at      timestamptz DEFAULT now()
 );
@@ -80,7 +81,8 @@ BEGIN
 
   IF existing_id IS NOT NULL THEN
     UPDATE game_manager
-    SET player2_id = p_user_id, phase = 'previewing', preview_ready = 0, shop_ready = 0
+    SET player2_id = p_user_id, phase = 'previewing', preview_ready = 0, shop_ready = 0,
+        preview_started_at = now()
     WHERE id = existing_id;
     SELECT row_to_json(g) INTO result FROM game_manager g WHERE id = existing_id;
   ELSE

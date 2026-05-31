@@ -172,7 +172,9 @@ class BattleScene(BaseScene):
                     from scenes.menu_scene import MenuScene
                     self.game.scene_manager.switch_scene(MenuScene(self.game))
                 else:
-                    # Battle won/drawn but run continues — back to shop
+                    # Battle won/drawn but run continues — back to shop.
+                    # match is already None (set by run_battle); clear defensively.
+                    self.game.state.match = None
                     self.ctrl.refresh_team()
                     self.ctrl.refresh_shop()
                     from scenes.shop_scene import ShopScene
