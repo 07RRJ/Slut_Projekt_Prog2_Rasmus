@@ -172,13 +172,13 @@ class BattleScene(BaseScene):
                     from scenes.menu_scene import MenuScene
                     self.game.scene_manager.switch_scene(MenuScene(self.game))
                 else:
-                    # Battle won/drawn but run continues — back to shop.
-                    # match is already None (set by run_battle); clear defensively.
+                    # Battle done, run continues — go straight to matchmaking.
+                    # The loop is: matchmaking -> preview -> shop -> pvp -> repeat.
+                    # There is no shop between pvp and the next matchmaking.
                     self.game.state.match = None
                     self.ctrl.refresh_team()
-                    self.ctrl.refresh_shop()
-                    from scenes.shop_scene import ShopScene
-                    self.game.scene_manager.switch_scene(ShopScene(self.game))
+                    from scenes.match_making_scene import MatchMakingScene
+                    self.game.scene_manager.switch_scene(MatchMakingScene(self.game))
 
     def draw(self, screen):
         screen.fill(BACKGROUND_COLOR)

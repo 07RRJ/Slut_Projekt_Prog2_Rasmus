@@ -111,17 +111,12 @@ class ShopScene(BaseScene):
     def ready(self):
         self._clear_selection()
         self.auto_ready_fired = True
-        # Push deck to DB before signalling ready
-        if self.game.state.match is None:
-            # No match yet — push deck then go to matchmaking
-            self.ctrl.push_deck_state()
-            from scenes.match_making_scene import MatchMakingScene
-            self.game.scene_manager.switch_scene(MatchMakingScene(self.game))
-        else:
-            # Already in a match — signal ready (which also pushes deck)
-            self.ctrl.signal_shop_ready()
-            from scenes.waiting_ready_scene import WaitingReadyScene
-            self.game.scene_manager.switch_scene(WaitingReadyScene(self.game))
+        # Always push deck then go to matchmaking.
+        # The loop is: matchmaking -> preview -> shop -> pvp -> repeat.
+        # state.match is always None here (cleared by PreviewScene).
+        self.ctrl.push_deck_state()
+        from scenes.match_making_scene import MatchMakingScene
+        self.game.scene_manager.switch_scene(MatchMakingScene(self.game))
 
     def _clear_selection(self):
         self.selected_shop_idx     = None

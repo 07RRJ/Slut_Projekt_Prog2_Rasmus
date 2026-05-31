@@ -217,18 +217,15 @@ END; $$;
             result["run_ended"] = True
             return result
 
-        # Run continues to next turn.
-        # Gold is NOT granted here — PreviewScene grants it when the preview
-        # timer ends, just before the next shop opens. Granting it here too
-        # would double-award every round from turn 2 onward.
+        # Run continues. Update health and turn only.
+        # Gold is granted by PreviewScene when the next preview timer expires.
+        # Battle scene will clear state.match after this returns.
         self.db.update_player(my_id, {
             "health": new_hp,
             "turn":   new_turn,
-            "status": "shopping",
         })
         self.state.health = new_hp
         self.state.turn   = new_turn
-        # state.match is intentionally left set here — battle scene clears it.
         self.state.match  = None
 
         return result
