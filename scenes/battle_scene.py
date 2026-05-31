@@ -89,8 +89,8 @@ class BattleScene(BaseScene):
 
             self.anim_start = slot_center(event.attacker_side, event.attacker_slot)
             self.anim_target = slot_center(event.defender_side, event.defender_slot)
-            overshoot_x = self.anim_target[0] + (self.anim_target[0] - self.anim_start[0]) * 0.3
-            overshoot_y = self.anim_target[1] + (self.anim_target[1] - self.anim_start[1]) * 0.3
+            overshoot_x = self.anim_target[0] + (self.anim_target[0] - self.anim_start[0]) * 0.1
+            overshoot_y = self.anim_target[1] + (self.anim_target[1] - self.anim_start[1]) * 0.1
             self.anim_over = (overshoot_x, overshoot_y)
             self.phase = "attack_out"
 
