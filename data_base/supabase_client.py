@@ -4,13 +4,18 @@ from dotenv import load_dotenv
 from core.constants import *
 
 def find_env() -> str:
+    import sys
     from pathlib import Path
-    p = Path(__file__).resolve().parent
+
+    if hasattr(sys, '_MEIPASS'):
+        return str(Path(sys._MEIPASS) / ".env")
+
+    path = Path(__file__).resolve().parent
     for _ in range(5):
-        candidate = p / ".env"
+        candidate = path / ".env"
         if candidate.exists():
             return str(candidate)
-        p = p.parent
+        path = path.parent
     return ".env"
 
 class Database:
