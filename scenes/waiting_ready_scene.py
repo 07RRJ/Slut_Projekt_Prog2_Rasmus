@@ -72,7 +72,7 @@ class WaitingReadyScene(BaseScene):
                 self.go_to_battle()
             return
 
-        if now - self.last_poll > self.POLL_EVERY:
+        if now - self.last_poll > POLL_EVERY:
             self.last_poll = now
             self.dots = (self.dots + 1) % 4
 
