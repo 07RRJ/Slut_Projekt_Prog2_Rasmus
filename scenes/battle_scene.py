@@ -30,7 +30,7 @@ class BattleScene(BaseScene):
 
         self.ctrl.load_enemy_team() # store enemy
         self.result = self.ctrl.run_battle() # give data to simulation and save it
-        self.events = self.result["events"]
+        self.log = self.result["log"]
 
         self.a_cards = [copy.copy(card) if card else None for card in game.state.team] # get identical cards to not tamper with og, since python variables just links the data to memory and all that
         self.b_cards = [copy.copy(card) if card else None for card in game.state.enemy_team]
@@ -44,7 +44,7 @@ class BattleScene(BaseScene):
         self.phase = "pause"
         self.phase_start = time.time()
 
-        self.cur_event: BattleEvent | None = None
+        self.cur_event: BattleEngine | None = None
 
         self.anim_card_side = None
         self.anim_card_slot = None
@@ -59,14 +59,14 @@ class BattleScene(BaseScene):
         self.advance()
 
     def advance(self): # drawing logic
-        if self.event_idx >= len(self.events):
+        if self.event_idx >= len(self.log):
             self.phase = "done"
             self.done = True
             self.highlight_a_slot = -1
             self.highlight_b_slot = -1
             return
 
-        event = self.events[self.event_idx]
+        event = self.log[self.event_idx]
         self.event_idx += 1
         self.cur_event = event
 
