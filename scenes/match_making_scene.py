@@ -115,7 +115,7 @@ class PreviewScene(BaseScene):
             card = self.game.state.team[slot.index]
             slot.draw(screen, card)
 
-        remaining = max(0, self.PREVIEW_SECONDS - int(self._elapsed()))
+        remaining = max(0, self.PREVIEW_SECONDS - int(self.elapsed()))
         timer = self.font.render(f"Shop opens in {remaining}", True, DARK_GRAY)
         screen.blit(timer, timer.get_rect(center=(MIDDLE_WIDTH, BASE_HEIGHT - 60)))
 
