@@ -5,7 +5,7 @@ from logic.controllers.game_controller import GameController
 from ui.team_slot import TeamSlot
 from ui.stat_box import StatBox
 from core.constants import *
-from ui.cards import my_slot_x, my_slot_y, opp_slot_x, opp_slot_y
+from ui.pos_helpers import *
 
 class MatchMakingScene(BaseScene):
     def __init__(self, game):
