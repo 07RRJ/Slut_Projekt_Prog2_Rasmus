@@ -3,7 +3,7 @@ from models.card_model import Card
 import copy
 
 GOLD_CAP = 100
-GOAL_TURN = 10  # Win requirement: reach turn 10
+GOAL_TURN = 5  # Win requirement: reach turn 10
 
 class GameController:
     def __init__(self, game):
