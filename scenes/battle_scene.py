@@ -190,12 +190,10 @@ class BattleScene(BaseScene):
                 card = self.b_cards[self.anim_card_slot]
 
             if card:
-                # Temporarily move the slot to the animation position, draw, then restore
-                original_x, original_y = slot.x, slot.y
-                slot.x = x - CARD_W // 2
-                slot.y = y - CARD_H // 2
+                original_topleft = slot.rect.topleft
+                slot.rect.topleft = (x - CARD_W // 2, y - CARD_H // 2)
                 slot.draw(screen, card)
-                slot.x, slot.y = original_x, original_y
+                slot.rect.topleft = original_topleft
 
                 vs = self.title.render("VS", True, GOLD)
                 screen.blit(vs, vs.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))
