@@ -9,7 +9,7 @@ class LoadingScene(BaseScene):
         self.font = pygame.font.SysFont("arial", 36)
         self.load_assets()
 
-    def load_assets(self):
+    def load_assets(self): # wish i had the time to make actual cards....
         assets = self.game.assets
         assets.load_image("icon", "assets/icon/icon.png")
         assets.load_image("background", "assets/menu/mainMenu.png")

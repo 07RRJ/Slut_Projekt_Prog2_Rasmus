@@ -1,35 +1,41 @@
+# screen and visuals
 BASE_WIDTH, BASE_HEIGHT = 1920, 1080
 MIDDLE_WIDTH, MIDDLE_HEIGHT = BASE_WIDTH // 2, BASE_HEIGHT // 2
 MARGIN, PADDING = 32, 32
 WIDTH_WITH_MARGIN, HEIGHT_WITH_MARGIN = BASE_WIDTH - MARGIN, BASE_HEIGHT - MARGIN
-
 FPS = 60
-
-TEAM_SIZE = 5
-SHOP_SIZE = 3
 
 BACKGROUND_COLOR = (200, 200, 200)
 WHITE = (240, 240, 240)
-BLACK = (20, 20, 20)
+LIGHT_GRAY = (180, 180, 180)
 GRAY = (120, 120, 120)
 DARK_GRAY = (60, 60, 60)
+LIGHT_BLACK = (40, 40, 40)
+BLACK = (20, 20, 20)
 RED = (160, 30, 30)
+LIGHT_GOLD = (220, 210, 170)
 GOLD = (220, 180, 30)
+DARK_GOLD = (180, 140, 10)
+DIRTY_GOLD = (140, 100, 0)
 BLUE = (100, 170, 255)
-# ── Card layout constants (shared across scenes) ──────────────
-CARD_W, CARD_H = 120, 180
-CARD_GAP       = 20
 
-def my_slot_x(slot_index: int) -> int:
-    """Player's card row: anchored bottom-left."""
-    return MARGIN + slot_index * (CARD_W + CARD_GAP)
+# match logic
+P1_GONE_THRESHOLD = 120 # seconds before P1 considered disconnected
+P2_GRACE_SECONDS = 30 # P2 countdown before default win
+BATTLE_COUNTDOWN = 5 # seconds buffer after both ready before battle loads
+POLL_EVERY = 2 # seconds
 
-def my_slot_y() -> int:
-    return BASE_HEIGHT - CARD_H - MARGIN
+# cards
+CARD_W, CARD_H = 180, 270
+CARD_GAP = 20
 
-def opp_slot_x(slot_index: int) -> int:
-    """Opponent's card row: anchored top-right, slot 0 rightmost."""
-    return BASE_WIDTH - MARGIN - CARD_W - slot_index * (CARD_W + CARD_GAP)
+# team and shop
+TEAM_SIZE = 5
+SHOP_SIZE = 3
+GOLD_CAP = 100
+SHOP_TIME_LIMIT, CHECKPOINT_TIME = 60, 30 # seconds
 
-def opp_slot_y() -> int:
-    return MARGIN
+# battle logic
+SLIDE_TIME = 0.2 # seconds
+PAUSE_AFTER = 0.15 # seconds
+WIN_GOAL = 5

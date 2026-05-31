@@ -1,7 +1,7 @@
 import pygame
 from scenes.base_scene import BaseScene
-from ui.button         import Button
-from core.constants    import *
+from ui.button import Button
+from core.constants import *
 
 class MenuScene(BaseScene):
     def __init__(self, game):
@@ -16,27 +16,24 @@ class MenuScene(BaseScene):
         if game.session:
             self.mode = "main"
             self.buttons = [
-                Button(button_rect[0], "PLAY",     self.play),
-                Button(button_rect[1], "LOG OUT",  self.log_out),
-                Button(button_rect[2], "QUIT",     self.quit),
+                Button(button_rect[0], "PLAY", self.play),
+                Button(button_rect[1], "LOG OUT", self.log_out),
+                Button(button_rect[2], "QUIT", self.quit),
             ]
         else:
             self.mode = "auth"
             self.buttons = [
-                Button(button_rect[0], "LOGIN",    self.go_to_login),
+                Button(button_rect[0], "LOGIN", self.go_to_login),
                 Button(button_rect[1], "REGISTER", self.go_to_register),
-                Button(button_rect[2], "QUIT",     self.quit),
+                Button(button_rect[2], "QUIT", self.quit),
             ]
 
         self.title_font = game.assets.get_font("title")
-        self.body_font  = game.assets.get_font("body")
+        self.body_font = game.assets.get_font("body")
 
-    # ── Play → wipe all stale state, fresh start ─────────────
-    def play(self):
+    def play(self): # remove old, make new "gör om gör rätt"
         uid = self.game.state.user_id
 
-        # Hard-delete everything for this player so they always start clean:
-        # game_manager rows, player_cards (via FK cascade), player row.
         db = self.game.db
         try:
             db.client.table("game_manager") \
@@ -49,7 +46,7 @@ class MenuScene(BaseScene):
                 .execute()
         except Exception:
             pass
-        db.force_cleanup_player(uid)   # deletes player → cascades player_cards
+        db.force_cleanup_player(uid)
 
         from logic.controllers.game_controller import GameController
         ctrl = GameController(self.game)
@@ -57,20 +54,20 @@ class MenuScene(BaseScene):
         from scenes.shop_scene import ShopScene
         self.game.scene_manager.switch_scene(ShopScene(self.game))
 
-    def log_out(self):
+    def log_out(self): # remove local session
         from auth.session import clear_session
         clear_session()
         self.game.session = None
         self.game.scene_manager.switch_scene(MenuScene(self.game))
 
-    def quit(self):
+    def quit(self): # quit
         self.game.running = False
 
-    def go_to_login(self):
+    def go_to_login(self): # go to login
         from scenes.login_scene import LoginScene
         self.game.scene_manager.switch_scene(LoginScene(self.game))
 
-    def go_to_register(self):
+    def go_to_register(self): # go to register
         from scenes.login_scene import RegisterScene
         self.game.scene_manager.switch_scene(RegisterScene(self.game))
 
@@ -84,9 +81,7 @@ class MenuScene(BaseScene):
         screen.blit(pygame.transform.scale(bg, (BASE_WIDTH, BASE_HEIGHT)), (0, 0))
 
         if self.game.session:
-            name = self.title_font.render(
-                f"{self.game.session['username']}", True, RED
-            )
+            name = self.title_font.render(f"{self.game.session['username']}", True, RED)
             screen.blit(name, (32, 32))
 
         for btn in self.buttons:

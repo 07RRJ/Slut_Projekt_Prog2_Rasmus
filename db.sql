@@ -1,8 +1,3 @@
--- ============================================================
---  Cards of Rebellion — full schema
---  Safe to re-run (uses IF NOT EXISTS / OR REPLACE)
--- ============================================================
-
 CREATE TABLE IF NOT EXISTS public.cards (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     name        text NOT NULL,
@@ -30,8 +25,8 @@ CREATE TABLE IF NOT EXISTS public.player (
     gold       int2 NOT NULL DEFAULT 10,
     turn       int2 NOT NULL DEFAULT 1,
     health     int2 NOT NULL DEFAULT 10,
-    status       text NOT NULL DEFAULT 'shopping'
-                 CHECK (status IN ('shopping','searching','previewing','in_match')),
+    status      text NOT NULL DEFAULT 'shopping'
+                CHECK (status IN ('shopping','searching','previewing','in_match')),
     battle_wins  int2 NOT NULL DEFAULT 0,
     last_seen    timestamptz DEFAULT now(),
     created_at timestamptz DEFAULT now()
@@ -68,7 +63,6 @@ CREATE INDEX IF NOT EXISTS idx_player_user       ON player       (user_id);
 CREATE INDEX IF NOT EXISTS idx_player_cards_user ON player_cards (user_id);
 CREATE INDEX IF NOT EXISTS idx_gm_phase_turn     ON game_manager (phase, turn);
 
--- ── Atomic matchmaking ─────────────────────────────────────
 CREATE OR REPLACE FUNCTION find_or_create_match(p_user_id uuid, p_turn int2)
 RETURNS json LANGUAGE plpgsql AS $$
 DECLARE
@@ -96,7 +90,6 @@ BEGIN
 END;
 $$;
 
--- ── Signal both ready (increments shop_ready counter) ────────
 CREATE OR REPLACE FUNCTION player_ready(p_match_id uuid)
 RETURNS json LANGUAGE plpgsql AS $$
 DECLARE
@@ -113,7 +106,6 @@ BEGIN
 END;
 $$;
 
--- ── Starter cards ──────────────────────────────────────────
 INSERT INTO public.cards (name, tier, base_attack, base_health, ability, cost, speed) VALUES
   ('Spades',   1, 3, 6, 'none', 3, 5),
   ('Hearts',   1, 5, 3, 'none', 3, 4),

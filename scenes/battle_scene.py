@@ -1,180 +1,167 @@
-"""
-BattleScene — animated battle playback.
-
-Uses BattleEngine's structured event log to drive per-step animation:
-  1. Highlight the attacking card (gold border, 8px)
-  2. Lerp a "projectile" rect from attacker → defender over SLIDE_TIME seconds
-  3. On arrival: update defender HP on the displayed card copy
-  4. If death event: mark that slot as hidden
-  5. When all events done: show result banner, wait for click
-
-After clicking:
-  - If goal_reached (5 battle wins): go to menu (run won!)
-  - If run_ended (health 0): go to menu (run lost)
-  - Otherwise: go to shop (next turn)
-"""
-
 import pygame, time, copy
-from scenes.base_scene                 import BaseScene
+from scenes.base_scene import BaseScene
 from logic.controllers.game_controller import GameController
-from logic.battle_engine               import BattleEvent
-from ui.team_slot                      import TeamSlot
-from ui.stat_box                       import StatBox
-from core.constants                    import *
+from logic.battle_engine import BattleEvent
+from ui.team_slot import TeamSlot
+from ui.stat_box import StatBox
+from core.constants import *
+from ui.cards import my_slot_x, my_slot_y, opp_slot_x, opp_slot_y
 
-SLIDE_TIME  = 0.35   # seconds for the projectile to travel
-PAUSE_AFTER = 0.25   # seconds to pause after each event before next
-
-# ── Layout helpers (use shared constants) ─────────────────────────────────────
-def _my_slot_rect(slot_index: int) -> pygame.Rect:
+def my_slot_rect(slot_index: int) -> pygame.Rect:
     return pygame.Rect(my_slot_x(slot_index), my_slot_y(), CARD_W, CARD_H)
 
-def _opp_slot_rect(slot_index: int) -> pygame.Rect:
+def opp_slot_rect(slot_index: int) -> pygame.Rect:
     return pygame.Rect(opp_slot_x(slot_index), opp_slot_y(), CARD_W, CARD_H)
 
-def _slot_rect(side: str, slot: int) -> pygame.Rect:
-    return _my_slot_rect(slot) if side == "a" else _opp_slot_rect(slot)
+def slot_rect(side: str, slot: int) -> pygame.Rect:
+    return my_slot_rect(slot) if side == "a" else opp_slot_rect(slot)
 
-def _slot_center(side: str, slot: int):
-    r = _slot_rect(side, slot)
-    return (r.centerx, r.centery)
-
+def slot_center(side: str, slot: int):
+    rect = slot_rect(side, slot)
+    return (rect.centerx, rect.centery)
 
 class BattleScene(BaseScene):
-
     def __init__(self, game):
         super().__init__(game)
-        self.ctrl     = GameController(game)
-        self.font     = game.assets.get_font("body")
-        self.title    = game.assets.get_font("title")
+        self.ctrl = GameController(game)
+        self.font = game.assets.get_font("body")
+        self.title = game.assets.get_font("title")
         self.stat_box = StatBox(game.state)
 
-        # Load teams and run simulation (pure logic, no network during animation)
-        self.ctrl.load_enemy_team()
-        self.result = self.ctrl.run_battle()
+        self.ctrl.load_enemy_team() # store enemy
+        self.result = self.ctrl.run_battle() # give data to simulation and save it
         self.events = self.result["events"]
 
-        # Local display copies so we can mutate HP/alive without touching state
-        self.a_cards = [copy.copy(c) if c else None for c in game.state.team]
-        self.b_cards = [copy.copy(c) if c else None for c in game.state.enemy_team]
-        self.a_dead  = set()   # slot indices of defeated cards
-        self.b_dead  = set()
+        self.a_cards = [copy.copy(card) if card else None for card in game.state.team] # get identical cards to not tamper with og, since python variables just links the data to memory and all that
+        self.b_cards = [copy.copy(card) if card else None for card in game.state.enemy_team]
+        self.a_dead = set() # indexes of the fallen
+        self.b_dead = set()
 
-        # Slot renderers (just for geometry; draw() calls them manually)
-        self.my_slots  = [TeamSlot(*_my_slot_rect(i).topleft, i)  for i in range(5)]
-        self.opp_slots = [TeamSlot(*_opp_slot_rect(i).topleft, i) for i in range(5)]
+        self.my_slots = [TeamSlot(*my_slot_rect(i).topleft, i) for i in range(5)]
+        self.opp_slots = [TeamSlot(*opp_slot_rect(i).topleft, i) for i in range(5)]
 
-        # Animation state
-        self.event_idx      = 0
-        self.phase          = "pause"   # "sliding" | "pause" | "done"
-        self.phase_start    = time.time()
+        self.event_idx = 0
+        self.phase = "pause"
+        self.phase_start = time.time()
 
-        # Current event being animated
         self.cur_event: BattleEvent | None = None
-        self.proj_start  = (0, 0)
-        self.proj_end    = (0, 0)
+
+        self.anim_card_side = None
+        self.anim_card_slot = None
+
+        self.anim_start = (0, 0)
+        self.anim_target = (0, 0)
+
         self.highlight_a_slot = -1
         self.highlight_b_slot = -1
 
         self.done = False
-        self._advance()   # kick off first event immediately
+        self.advance()
 
-    # ── Animation driver ─────────────────────────────────────
-
-    def _advance(self):
-        """Move to the next event in the log."""
+    def advance(self): # drawing logic
         if self.event_idx >= len(self.events):
             self.phase = "done"
-            self.done  = True
+            self.done = True
             self.highlight_a_slot = -1
             self.highlight_b_slot = -1
             return
 
-        ev = self.events[self.event_idx]
+        event = self.events[self.event_idx]
         self.event_idx += 1
-        self.cur_event = ev
+        self.cur_event = event
 
-        if ev.kind == "result":
+        if event.kind == "result":
             self.phase = "done"
-            self.done  = True
+            self.done = True
             self.highlight_a_slot = -1
             self.highlight_b_slot = -1
             return
 
-        if ev.kind == "death":
-            # Immediately hide the card, then short pause
-            if ev.defender_side == "a":
-                self.a_dead.add(ev.defender_slot)
+        if event.kind == "death":
+            if event.defender_side == "a":
+                self.a_dead.add(event.defender_slot)
             else:
-                self.b_dead.add(ev.defender_slot)
+                self.b_dead.add(event.defender_slot)
             self.highlight_a_slot = -1
             self.highlight_b_slot = -1
-            self.phase       = "pause"
+            self.phase = "pause"
             self.phase_start = time.time()
             return
 
-        if ev.kind == "strike":
-            # Highlight attacker, start projectile
-            if ev.attacker_side == "a":
-                self.highlight_a_slot = ev.attacker_slot
+        if event.kind == "strike":
+            if event.attacker_side == "a":
+                self.highlight_a_slot = event.attacker_slot
                 self.highlight_b_slot = -1
             else:
-                self.highlight_b_slot = ev.attacker_slot
+                self.highlight_b_slot = event.attacker_slot
                 self.highlight_a_slot = -1
 
-            self.proj_start  = _slot_center(ev.attacker_side, ev.attacker_slot)
-            self.proj_end    = _slot_center(ev.defender_side,  ev.defender_slot)
-            self.phase       = "sliding"
+            self.anim_card_side = event.attacker_side
+            self.anim_card_slot = event.attacker_slot
+
+            self.anim_start = slot_center(event.attacker_side, event.attacker_slot)
+            self.anim_target = slot_center(event.defender_side, event.defender_slot)
+
+            self.phase = "attack_out"
             self.phase_start = time.time()
 
-    def _finish_strike(self):
-        """Called when the projectile reaches the target: apply HP update."""
-        ev = self.cur_event
-        if ev is None:
+    def finish_strike(self): # change card stats, right now just hp after being attacked
+        event = self.cur_event
+        if event is None:
             return
-        # Update the local display copy
-        target_list = self.b_cards if ev.defender_side == "b" else self.a_cards
-        c = target_list[ev.defender_slot]
-        if c:
-            c.health = ev.defender_hp
+        target_list = self.b_cards if event.defender_side == "b" else self.a_cards
+        card = target_list[event.defender_slot]
+        if card:
+            card.health = event.defender_hp
         self.highlight_a_slot = -1
         self.highlight_b_slot = -1
-        self.phase       = "pause"
+        self.phase = "pause"
         self.phase_start = time.time()
 
-    # ── Scene interface ──────────────────────────────────────
+    def get_attack_position(self):
+        elapsed = time.time() - self.phase_start
+        t = min(elapsed / SLIDE_TIME, 1.0)
+
+        if self.phase == "attack_back":
+            t = 1.0 - t
+
+        x = self.anim_start[0] + (self.anim_target[0] - self.anim_start[0]) * t
+        y = self.anim_start[1] + (self.anim_target[1] - self.anim_start[1]) * t
+
+        return (x, y)
 
     def update(self):
-        now     = time.time()
+        now = time.time()
         elapsed = now - self.phase_start
 
-        if self.phase == "sliding":
+        if self.phase == "attack_out":
             if elapsed >= SLIDE_TIME:
-                self._finish_strike()
+                self.finish_strike()
+                self.phase = "attack_back"
+                self.phase_start = time.time()
+
+        elif self.phase == "attack_back":
+            if elapsed >= SLIDE_TIME:
+                self.phase = "pause"
+                self.phase_start = time.time()
 
         elif self.phase == "pause":
             if elapsed >= PAUSE_AFTER:
-                self._advance()
+                self.advance()
 
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and self.done:
-                # Check what happened in the battle
                 goal_reached = self.result.get("goal_reached", False)
-                run_ended    = self.result.get("run_ended", False)
+                run_ended = self.result.get("run_ended", False)
 
                 if goal_reached:
-                    # Goal reached! Go to menu to celebrate
                     from scenes.menu_scene import MenuScene
                     self.game.scene_manager.switch_scene(MenuScene(self.game))
                 elif run_ended:
-                    # Run ended (health 0) — go to menu
                     from scenes.menu_scene import MenuScene
                     self.game.scene_manager.switch_scene(MenuScene(self.game))
                 else:
-                    # Battle done, run continues — go straight to matchmaking.
-                    # The loop is: matchmaking -> preview -> shop -> pvp -> repeat.
-                    # There is no shop between pvp and the next matchmaking.
                     self.game.state.match = None
                     self.ctrl.refresh_team()
                     from scenes.match_making_scene import MatchMakingScene
@@ -183,58 +170,71 @@ class BattleScene(BaseScene):
     def draw(self, screen):
         screen.fill(BACKGROUND_COLOR)
 
-        # ── Opponent row (top, mirrored) ──────────────────────
         for slot in self.opp_slots:
-            card      = self.b_cards[slot.index]
-            hidden    = slot.index in self.b_dead
+            skip_draw = (self.phase in ["attack_out", "attack_back"] and self.anim_card_side == "b" and self.anim_card_slot == slot.index)
+
+            if skip_draw:
+                continue
+
+            card = self.b_cards[slot.index]
+            hidden = slot.index in self.b_dead
             highlight = (slot.index == self.highlight_b_slot)
+
             slot.draw(screen, card, highlight=highlight, hidden=hidden)
 
-        # ── My row (bottom) ───────────────────────────────────
         for slot in self.my_slots:
-            card      = self.a_cards[slot.index]
-            hidden    = slot.index in self.a_dead
+            skip_draw = (self.phase in ["attack_out", "attack_back"] and self.anim_card_side == "a" and self.anim_card_slot == slot.index)
+
+            if skip_draw:
+                continue
+
+            card = self.a_cards[slot.index]
+            hidden = slot.index in self.a_dead
             highlight = (slot.index == self.highlight_a_slot)
             slot.draw(screen, card, highlight=highlight, hidden=hidden)
 
-        # ── VS label ─────────────────────────────────────────
+        if self.phase in ["attack_out", "attack_back"]:
+            x, y = self.get_attack_position()
+
+            if self.anim_card_side == "a":
+                card = self.a_cards[self.anim_card_slot]
+            else:
+                card = self.b_cards[self.anim_card_slot]
+
+            if card:
+                rect = pygame.Rect(x - CARD_W // 2, y - CARD_H // 2, CARD_W, CARD_H)
+                pygame.draw.rect(screen, WHITE, rect, border_radius=12)
+                pygame.draw.rect(screen, BLACK, rect, 3, border_radius=12)
+                text = self.font.render(card.name, True, BLACK)
+
+                screen.blit(text, text.get_rect(center=rect.center))
+
         vs = self.title.render("VS", True, GOLD)
         screen.blit(vs, vs.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))
 
-        # ── Projectile ────────────────────────────────────────
-        if self.phase == "sliding" and self.cur_event:
-            elapsed = time.time() - self.phase_start
-            t       = min(elapsed / SLIDE_TIME, 1.0)
-            px = int(self.proj_start[0] + (self.proj_end[0] - self.proj_start[0]) * t)
-            py = int(self.proj_start[1] + (self.proj_end[1] - self.proj_start[1]) * t)
-            pygame.draw.circle(screen, RED, (px, py), 10)
-
-        # ── Current action text ───────────────────────────────
         if self.cur_event and not self.done:
             txt = self.font.render(self.cur_event.text, True, DARK_GRAY)
             screen.blit(txt, txt.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT + 60)))
 
-        # ── Result banner / end screen ────────────────────────
         if self.done:
             goal_reached = self.result.get("goal_reached", False)
-            run_ended    = self.result.get("run_ended", False)
+            run_ended = self.result.get("run_ended", False)
 
             if goal_reached or run_ended:
-                # Full-screen win / death overlay — drawn over everything
                 overlay = pygame.Surface((BASE_WIDTH, BASE_HEIGHT), pygame.SRCALPHA)
                 overlay.fill((0, 0, 0, 200))
                 screen.blit(overlay, (0, 0))
 
                 if goal_reached:
-                    banner      = "YOU WIN!"
-                    sub         = "5 battles won — run complete!"
-                    color       = GOLD
-                    sub_color   = GOLD
+                    banner = "YOU WIN"
+                    sub = "5 battles won = run complete"
+                    color = GOLD
+                    sub_color = GOLD
                 else:
-                    banner      = "GAME OVER"
-                    sub         = "Your health reached 0"
-                    color       = RED
-                    sub_color   = RED
+                    banner = "GAME OVER"
+                    sub = "Your health reached 0"
+                    color = RED
+                    sub_color = RED
 
                 banner_surf = self.title.render(banner, True, color)
                 screen.blit(banner_surf, banner_surf.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT - 60)))
@@ -245,11 +245,10 @@ class BattleScene(BaseScene):
                 hint_surf = self.font.render("Click anywhere to return to menu", True, GRAY)
                 screen.blit(hint_surf, hint_surf.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT + 80)))
             else:
-                # Mid-run battle result — small banner at top
-                w = self.result["winner"]
-                if w == "a":
-                    banner, color, hint = "YOU WIN!", GOLD, "Click to continue"
-                elif w == "b":
+                winner = self.result["winner"]
+                if winner == "a":
+                    banner, color, hint = "YOU WIN", GOLD, "Click to continue"
+                elif winner == "b":
                     banner, color, hint = "YOU LOSE", RED, "Click to continue"
                 else:
                     banner, color, hint = "DRAW", GRAY, "Click to continue"

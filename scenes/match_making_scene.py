@@ -5,6 +5,7 @@ from logic.controllers.game_controller import GameController
 from ui.team_slot import TeamSlot
 from ui.stat_box import StatBox
 from core.constants import *
+from ui.cards import my_slot_x, my_slot_y, opp_slot_x, opp_slot_y
 
 class MatchMakingScene(BaseScene):
     def __init__(self, game):
@@ -59,42 +60,32 @@ class PreviewScene(BaseScene):
         self.title = game.assets.get_font("title")
         self.stat_box = StatBox(game.state)
 
-        self.my_slots  = [TeamSlot(my_slot_x(i),  my_slot_y(),  i) for i in range(5)]
+        self.my_slots = [TeamSlot(my_slot_x(i), my_slot_y(), i) for i in range(5)]
         self.opp_slots = [TeamSlot(opp_slot_x(i), opp_slot_y(), i) for i in range(5)]
 
-        # Use server-side match timestamp as shared clock so both clients
-        # count down from the same origin — this prevents timer desync where
-        # P2 (who joins slightly later) gets less preview time than P1.
-        self._server_start: float = time.time()  # fallback: local clock
+        self._server_start: float = time.time()
         match = game.state.match
-        if match:
-            # preview_started_at is set by the DB when P2 joins; prefer it
-            # over created_at (which is P1's match creation time).
+        if match: # to be able to remove old matches for example
             ts = match.get("preview_started_at") or match.get("created_at")
             if ts:
                 try:
-                    from datetime import datetime, timezone
+                    from datetime import datetime
                     dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
                     self._server_start = dt.timestamp()
                 except Exception:
                     pass
 
-    def _elapsed(self) -> float:
+    def elapsed(self) -> float:
         return time.time() - self._server_start
 
     def update(self):
-        if self._elapsed() >= self.PREVIEW_SECONDS:
+        if self.elapsed() >= self.PREVIEW_SECONDS:
             from scenes.shop_scene import ShopScene
-            # Grant gold for this shopping round. This is the correct place:
-            # preview->shop starts a new round. Both clients compute the same
-            # value from the DB so the last-writer-wins race is harmless.
             player = self.game.db.get_player(self.game.state.user_id)
             if player:
-                new_gold = min(player.get("gold", 0) + 10, 100)
+                new_gold = min(player.get("gold", 0) + 10, GOLD_CAP)
                 self.game.db.update_player(self.game.state.user_id, {"gold": new_gold})
                 self.game.state.gold = new_gold
-            # Reset shop_ready so both players can signal ready again this round.
-            # Player1 owns this write to avoid a write race.
             match = self.game.state.match
             if match and match.get("player1_id") == self.game.state.user_id:
                 try:
@@ -104,8 +95,6 @@ class PreviewScene(BaseScene):
                     }).eq("id", match["id"]).execute()
                 except Exception:
                     pass
-            # Keep state.match alive — shop needs it to call signal_shop_ready()
-            # so both players sync before pvp starts.
             self.ctrl.refresh_shop()
             self.game.scene_manager.switch_scene(ShopScene(self.game))
 

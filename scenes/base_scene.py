@@ -1,4 +1,4 @@
-class BaseScene:
+class BaseScene: # to have the defult funcs to build scenes of
     def __init__(self, game):
         self.game = game
 
