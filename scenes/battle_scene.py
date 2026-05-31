@@ -8,8 +8,10 @@ Uses BattleEngine's structured event log to drive per-step animation:
   4. If death event: mark that slot as hidden
   5. When all events done: show result banner, wait for click
 
-All card state is kept in local display copies (self.a_cards / self.b_cards)
-so the live GameState isn't mutated.
+After clicking:
+  - If goal_reached (turn 10): go to menu (run won!)
+  - If run_ended (health 0): go to menu (run lost)
+  - Otherwise: go to shop (next turn)
 """
 
 import pygame, time, copy
@@ -157,13 +159,24 @@ class BattleScene(BaseScene):
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and self.done:
-                from scenes.match_making_scene import MatchMakingScene
-                from scenes.menu_scene import MenuScene
-                player = self.game.db.get_player(self.game.state.user_id)
-                if player:
-                    self.game.scene_manager.switch_scene(MatchMakingScene(self.game))
-                else:
+                # Check what happened in the battle
+                goal_reached = self.result.get("goal_reached", False)
+                run_ended    = self.result.get("run_ended", False)
+
+                if goal_reached:
+                    # Goal reached! Go to menu to celebrate
+                    from scenes.menu_scene import MenuScene
                     self.game.scene_manager.switch_scene(MenuScene(self.game))
+                elif run_ended:
+                    # Run ended (health 0) — go to menu
+                    from scenes.menu_scene import MenuScene
+                    self.game.scene_manager.switch_scene(MenuScene(self.game))
+                else:
+                    # Battle won/drawn but run continues — back to shop
+                    self.ctrl.refresh_team()
+                    self.ctrl.refresh_shop()
+                    from scenes.shop_scene import ShopScene
+                    self.game.scene_manager.switch_scene(ShopScene(self.game))
 
     def draw(self, screen):
         screen.fill(BACKGROUND_COLOR)
@@ -201,16 +214,27 @@ class BattleScene(BaseScene):
 
         # ── Result banner ─────────────────────────────────────
         if self.done:
-            w = self.result["winner"]
-            if w == "a":
-                banner, color = "YOU WIN!", GOLD
-            elif w == "b":
-                banner, color = "YOU LOSE",  RED
+            goal_reached = self.result.get("goal_reached", False)
+            run_ended    = self.result.get("run_ended", False)
+
+            if goal_reached:
+                banner, color = "GOAL REACHED!", GOLD
+                hint = "You made it to Turn 10!"
+            elif run_ended:
+                banner, color = "RUN ENDED", RED
+                hint = "Health reached 0"
             else:
-                banner, color = "DRAW",      GRAY
+                w = self.result["winner"]
+                if w == "a":
+                    banner, color, hint = "YOU WIN!", GOLD, "Click to continue"
+                elif w == "b":
+                    banner, color, hint = "YOU LOSE", RED, "Click to continue"
+                else:
+                    banner, color, hint = "DRAW", GRAY, "Click to continue"
+
             surf = self.title.render(banner, True, color)
             screen.blit(surf, surf.get_rect(center=(MIDDLE_WIDTH, 50)))
-            hint = self.font.render("Click anywhere to continue", True, GRAY)
-            screen.blit(hint, hint.get_rect(center=(MIDDLE_WIDTH, BASE_HEIGHT - 50)))
+            hint_text = self.font.render(hint, True, GRAY)
+            screen.blit(hint_text, hint_text.get_rect(center=(MIDDLE_WIDTH, BASE_HEIGHT - 50)))
 
         self.stat_box.draw(screen)

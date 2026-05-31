@@ -84,7 +84,7 @@ class Database:
             "user_id": user_id,
             "gold":    10,
             "turn":    1,
-            "health":  10,
+            "health":  5,
             "status":  "shopping",
         }).execute()
         return res.data[0]

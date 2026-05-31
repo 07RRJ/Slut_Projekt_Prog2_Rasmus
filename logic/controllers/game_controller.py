@@ -3,6 +3,7 @@ from models.card_model import Card
 import copy
 
 GOLD_CAP = 100
+GOAL_TURN = 10  # Win requirement: reach turn 10
 
 class GameController:
     def __init__(self, game):
@@ -181,6 +182,7 @@ END; $$;
 
     # ── Battle ───────────────────────────────────────────────
     def run_battle(self) -> dict:
+        """Run battle simulation and handle results. Returns result dict."""
         from logic.battle_engine import BattleEngine
         result = BattleEngine.simulate(self.state.team, self.state.enemy_team)
 
@@ -201,20 +203,31 @@ END; $$;
         player   = self.db.get_player(my_id)
         new_hp   = player["health"] - (0 if i_won or result["winner"] == "draw" else 1)
         new_turn = player["turn"] + 1
-        new_gold = min(player["gold"] + 10, 100)
+
+        # Check if we reached the goal
+        if new_turn > GOAL_TURN:
+            # Goal reached! End the run successfully
+            self.db.end_run(my_id, won=True)
+            result["goal_reached"] = True
+            return result
 
         if new_hp <= 0:
+            # Health depleted — run ends in failure
             self.db.end_run(my_id, won=False)
-        else:
-            self.db.update_player(my_id, {
-                "health": new_hp,
-                "turn":   new_turn,
-                "gold":   new_gold,
-                "status": "shopping",
-            })
-            self.state.health = new_hp
-            self.state.turn   = new_turn
-            self.state.gold   = new_gold
-            self.state.match  = None
+            result["run_ended"] = True
+            return result
+
+        # Run continues to next turn
+        new_gold = min(player["gold"] + 10, 100)
+        self.db.update_player(my_id, {
+            "health": new_hp,
+            "turn":   new_turn,
+            "gold":   new_gold,
+            "status": "shopping",
+        })
+        self.state.health = new_hp
+        self.state.turn   = new_turn
+        self.state.gold   = new_gold
+        self.state.match  = None
 
         return result
