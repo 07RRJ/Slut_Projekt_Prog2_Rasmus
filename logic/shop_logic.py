@@ -21,7 +21,6 @@ class StatUp:
         self.d_speed = d_speed
         self.cost = cost
 
-
 class ShopLogic:
     @staticmethod
     def generate_from_db(db_rows: list) -> list: # take db make the cards

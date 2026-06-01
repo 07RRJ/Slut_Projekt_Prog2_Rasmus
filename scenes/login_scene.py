@@ -47,7 +47,7 @@ class AuthScene(BaseScene):
             self.username_input.handle_event(event)
             self.password_input.handle_event(event)
             if not self.loading:
-                for btn in self._buttons():
+                for btn in self.buttons():
                     btn.handle_event(event)
 
     def draw(self, screen):
@@ -116,8 +116,8 @@ class LoginScene(AuthScene):
         if self.loading and hasattr(self, "_pending_session") and self._pending_session is not None:
             user = self._pending_session
             self._pending_session = None
-            self._set_loading(False)
-            self._open_session(user)
+            self.set_loading(False)
+            self.open_session(user)
 
 class RegisterScene(AuthScene):
     def __init__(self, game):
@@ -137,7 +137,7 @@ class RegisterScene(AuthScene):
         if len(password) < 4:
             self.error = "Password must be at least 4 characters" # some base security for users
             return
-        self._set_loading(True)
+        self.set_loading(True)
         self.error = ""
 
         def work():
@@ -145,7 +145,7 @@ class RegisterScene(AuthScene):
             user = self.game.db.register(username, hashed)
             if not user:
                 self.error = "Username already taken"
-                self._set_loading(False)
+                self.set_loading(False)
                 return
             self._pending_session = user
 
@@ -156,5 +156,5 @@ class RegisterScene(AuthScene):
         if self.loading and hasattr(self, "_pending_session") and self._pending_session is not None:
             user = self._pending_session
             self._pending_session = None
-            self._set_loading(False)
-            self._open_session(user)
+            self.set_loading(False)
+            self.open_session(user)
