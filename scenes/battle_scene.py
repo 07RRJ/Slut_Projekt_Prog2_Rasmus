@@ -14,6 +14,7 @@ class BattleScene(BaseScene):
         self.font = game.assets.get_font("body")
         self.title = game.assets.get_font("title")
         self.stat_box = StatBox(game.state)
+        self.opponent_stat_box = StatBox(game.state, opponent=True)
 
         self.ctrl.load_enemy_team() # store enemy
         self.result = self.ctrl.run_battle() # give data to simulation and save it
