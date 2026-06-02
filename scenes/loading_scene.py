@@ -28,4 +28,4 @@ class LoadingScene(BaseScene):
     def draw(self, screen):
         screen.fill((20, 20, 20))
         text = self.font.render("Loading…", True, WHITE)
-        screen.blit(text, text.get_rect(center=(BASE_WIDTH // 2, BASE_HEIGHT // 2)))
+        screen.blit(text, text.get_rect(center=(MIDDLE_WIDTH, MIDDLE_HEIGHT)))
